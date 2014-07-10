@@ -1,4 +1,4 @@
-2.1	Nova虚拟机创建流程
+2.1	Nova虚拟机创建流程rtmp://fms2.gopep.cn/vod/mp4:YY-9A-PEP_U1-01_TBKT
 本次分析主要从Nova.compute.manger入手，对于创建虚拟机的API请求以及调度不做分析。创建虚拟机入口函数为_run_instance，manger中driver初始化是根据配置文件中的配置信息，默认为compute_driver = libvirt.LibvirtDriver。具体函数调用关系如下图。
 +---------------------+                                      
 |   _build_instance   |                                      
