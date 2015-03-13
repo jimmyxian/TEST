@@ -1,0 +1,54 @@
+docker管理工具之machine
+
+为什么？
+现如今，不同云平台上安装docker的流程都不一样，这样对于用户部署docker主机就非常复杂。为了解决这一问题，出现了machine项目（https://github.com/docker/machine），通过docker-machine可以在不同平台上（例如Azure、Rackspace、Openstack、Google等云平台）创建docker主机。
+
+是什么？
+Machine是一个简化docker安装的命令行工具，其可以在不同平台上创建包含docker的实例。
+
+现状？
+Machine当前处在beta版本，支持以下平台：
+Amazon Web Services
+Digital Ocean
+Google Compute Engine
+IBM Softlayer
+Microsoft Azure
+Microsoft Hyper-V
+Openstack
+Rackspace
+Oracle VirtualBox
+VMware Fusion
+VMware vCloud Air
+VMware vSphere
+
+怎么用？
+首先安装docker-machine命令行工具，可以从machine对应的github上下载（https://github.com/docker/machine/releases），下载文件是一个二进制可执行呈现，不需要任何依赖，直接改名为docker-machine即可。
+docker-machine创建docker主机的过程：
+（1）调用create命令可创建一个docker主机
+	$ docker-machine create --driver virtualbox dev
+	INFO[0000] Creating SSH key...
+	INFO[0000] Creating VirtualBox VM...
+	INFO[0007] Starting VirtualBox VM...
+	INFO[0007] Waiting for VM to start...
+	INFO[0038] "dev" has been created and is now the active machine
+	INFO[0038] To connect: docker $(docker-machine config dev) ps
+	说明：在virtualbox创建一个docker虚拟机，也可以指定别的driver
+（2）通过ls命令可查看当前已安装的主机
+	$ docker-machine ls
+	NAME      ACTIVE   DRIVER       STATE     URL
+	dev       *        virtualbox   Running   tcp://192.168.99.100:2376
+（3）可以通过docker-machine config dev查看docker client连接信息
+	$ docker-machine config dev
+	--tls --tlscacert=/Users/ehazlett/.docker/machines/dev/ca.pem --tlscert=/Users/ehazlett/.docker/machines/dev/cert.pem --tlskey=/Users/ehazlett/.docker/machines/dev/key.pem -H tcp://192.168.99.103:2376
+	通过此命令可以构造docker相关命令,例如：
+	$ docker $(docker-machine config dev) run busybox echo hello world
+（4）其他命令：info（查看信息） stop（停止主机） kill（强制停止） start（启用主机） restart（重启主机） rm（删除主机） ssh（登陆主机） url（获取
+docker的url） upgrade（升级docker）
+
+参考：
+http://docs.docker.com/machine
+https://github.com/docker/machine
+
+
+
+
