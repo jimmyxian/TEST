@@ -1,0 +1,22 @@
+LoadImage(io.Reader) error
+
+
+func (client *DockerClient) LoadImage(reader io.Reader) error {
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	uri := fmt.Sprintf("/%s/images/load", APIVersion)
+	_, err = client.doRequest("POST", uri, data, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
+
+func (client *MockClient) LoadImage(reader io.Reader) error{
+	args := client.Mock.Called(reader)
+	return args.Error(0)
+}
