@@ -1,0 +1,92 @@
+api.go
+
+	"os"
+	"io"
+	"path"
+	
+// POST  /images/load
+func postLoad(c *context, w http.ResponseWriter, r *http.Request) {
+	//cache tar file
+	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
+	if err != nil {
+		httpError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer os.RemoveAll(tmpImageDir)
+
+	repoTarFile := path.Join(tmpImageDir, "repo.tar")
+	tarFile, err := os.Create(repoTarFile)
+	if err != nil {
+		httpError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	if _, err := io.Copy(tarFile, r.Body); err != nil {
+		httpError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tarFile.Close()
+	
+	// call cluster to load image on every node	
+	wf := NewWriteFlusher(w)
+	callback := func(what, status string) {
+	
+		if status == "" {
+			fmt.Fprintf(wf, "%s:Loading Image...\n", what)
+		} else {
+			fmt.Fprintf(wf, "%s:Loading Image... %s\n", what,status)
+		}			
+	}
+	c.cluster.Load(repoTarFile, callback)	
+}
+
+"/images/load":                  postLoad,
+
+
+cluster.go
+	// Load images
+	// `callback` can be called multiple time
+	//  `what` is what is being loaded
+	//  `status` is the current status, like "", "in progress" or "loaded"
+	Load(tarFile string, callback func(what, status string))
+	
+cluster.go
+func (c *Cluster) Load(tarFile string, callback func(what, status string)) {
+	size := len(c.engines)
+	done := make(chan bool, size)
+	for _, n := range c.engines {
+		go func(nn *cluster.Engine) {
+			if callback != nil {
+				callback(nn.Name, "")
+			}
+			err := nn.Load(tarFile)
+			if callback != nil {
+				if err != nil {
+					callback(nn.Name, err.Error())
+				} else {
+					callback(nn.Name, "loaded")
+				}
+			}
+			done <- true
+		}(n)
+	}
+	for i := 0; i < size; i++ {
+		<-done
+	}	
+}
+
+engine.go
+	"os"
+	
+// Load an image on the engine
+func (e *Engine) Load(tarFile string) error {
+	file, err := os.Open(tarFile)
+	if err != nil {
+		return err
+	}
+
+	if err := e.client.LoadImage(file); err != nil {
+		return err
+	}
+	return nil
+}
