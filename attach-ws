@@ -1,0 +1,23 @@
+#!/usr/bin/env bats
+
+load helpers
+
+function teardown() {
+        stop_manager
+        stop_docker
+}
+
+@test "attach container through websocket, session should be ok" {
+        start_docker 1
+        start_manager
+
+        # create a container
+        run docker_swarm run -d --name test_container busybox sleep 1000
+
+        # test attach-ws api
+        docker run --rm jimmyxian/centos7-wssh wssh "ws://${SWARM_HOST}/v1.17/containers/test_container/attach/ws?stderr=1&stdout=1"
+        [ "$status" -eq 0 ]
+        [ "${#lines[@]}" -eq 2 ]
+        [[ "${#lines[0]}" == *"Session Open"* ]]
+        [[ "${#lines[0]}" == *"Session Closed"* ]]
+}
