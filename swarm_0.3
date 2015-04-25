@@ -1,0 +1,27 @@
+swarm 0.3版本规划
+1、可靠性
+swarm manage自身的可靠性
+swarm还是一个单机版，没有HA相关特性。这一版本会通过多节点leader-election实现自身的HA，相关issue有以下几个：
+（1）多节点共享状态：需将状态相关信息存在KV组件中（如zk、etcd等）#507
+（2）Leader election选举 #598
+（3）节点删除 #197
+2、Mesos集成
+0.2版本中已经将集群的api抽象了出来，可以采用插件的方式集成其他集群，在这个版本打算实现mesos的cluster driver。相关issue如下：
+（1）Mesos集成 #214
+3、调度
+swarm有自身的调度算法，现在提供了一些基础功能。选择节点时首先经过过滤器过滤节点，然后在根据调度策略选择一个节点部署。在这个版本中计划增加更多的调度策略，如rebalance（容器挂掉后，重新选择节点部署）、global scheduling（将容器部署到所有节点），相关issue如下：
+（1）虚拟容器ID（Virtual Container ID）#600
+（2）Rebalancing (depends on Virtual Container ID) #599
+（3）Global scheduling (depends on Virtual Container ID) #600
+4、网络
+在0.3版本中会引入docker网络（libnetwork）
+5、API实现
+尽可能多的实现docker api，现在已实现85%的api，目标100%，相关issue如下：
+（1）尽可能多的实现docker #602
+（2）采用labels替代原有的env #288
+（3）docker ps和docker images命令输出结果增加labels #288
+6、服务发现
+通过swarm create创建的token和docker/hub没有关联，在这个版本中需要解决这一问题，相关issue如下：：
+（1）更新服务端，让其保存用户名和密码 #438
+（2）更新客户端，让其可以发送用户名密码 #438
+（3）服务发现处理TTL #611
