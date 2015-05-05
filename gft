@@ -1,0 +1,1 @@
+fgt find test/ -type f \( -name "*.sh" -or -name "*.bash" -or -name "*.bats" \) -exec grep -Hn -e "^ " {} \;
