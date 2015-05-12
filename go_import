@@ -1,0 +1,44 @@
+func (c *Cluster) Import(source string, repository string, tar string, imageReader io.Reader, callback func(what, status string)) {
+
+            // call engine load image
+            err := nn.Import(source, repository, tar, reader)
+            if callback != nil {
+                if err != nil {
+                    callback(nn.Name, err.Error())
+                } else {
+                    callback(nn.Name, "Import success")
+                }
+            }
+            
+            
+            
+
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusCreated)
+        callback := func(what, status string) {
+            fmt.Fprintf(wf, "{%q:%q,%q:\"%s\"}", "id", what, "status", status)
+        }
+        source := r.Form.Get("fromSrc")
+        repo := r.Form.Get("repo")
+        tag := r.Form.Get("tag")
+        c.cluster.Import(source, repo, tag, r.Body, callback )
+  
+  
+  
+      // Import image
+    // `callback` can be called multiple time
+    // `what` is what is being loaded
+    // `status` is the current status, like "", "in progress" or "loaded"
+    Import(source string, repository string, tar string, imageReader io.Reader, callback func(what, status string))
+    
+    
+    func (e *Engine) Import(source string, repository string, tar string, imageReader io.Reader) error {
+    if _, err := e.client.ImportImage(source, repository, tar, imageReader); err != nil {
+        return  err
+    }
+
+    // force fresh images
+    e.RefreshImages()
+
+    return nil
+}
