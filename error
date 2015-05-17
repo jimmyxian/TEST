@@ -1,0 +1,2 @@
+pkg/store/etcd.go:54: unknown net.Dialer field 'KeepAlive' in struct literal
+pkg/store/etcd.go:56: unknown http.Transport field 'TLSHandshakeTimeout' in struct literal
