@@ -1,0 +1,31 @@
+heat_template_version: 2013-05-23
+description: >
+  Heat template to deploy Docker containers to an existing host
+
+parameters:
+  endpoint:
+    type: string
+    description: Docker endpoint
+
+  image_name:
+    type: string
+    description: Image name
+
+  container_name:
+    type: string
+    description: Container name
+    default: ""
+
+  port_bind:
+    description: Port bindings
+    type: json
+    default: {}
+
+resources:
+  nginx-01:
+    type: DockerInc::Docker::Container
+    properties:
+      name: { get_param: container_name}
+      image: { get_param: image_name}
+      port_bindings: { get_param: port_bind}
+      docker_endpoint: { get_param: endpoint}
