@@ -12,3 +12,15 @@ http://download.opensuse.org/repositories/Cloud:/OpenStack:/Juno/SLE_11_SP3/x86_
 #!/bin/bash
 rpm -ivh openstack-heat-plugin-heat_docker-2014.2.4.dev8-1.1.x86_64.rpm  python-docker-py-0.5.3-2.3.x86_64.rpm  python-websocket-client-0.23.0-2.3.x86_64.rpm --nodeps --force
 heatControl -A RESTART
+
+
+
+#!/bin/bash
+RegistryAddr="186.100.40.82:5000"
+rpm -ivh /home/docker-1.6.x86_64.rpm
+sed -i "s/OPTIONS='--selinux-enabled'/OPTIONS='-H tcp:\/\/0.0.0.0:2375 -H unix:\/\/\/var\/run\/docker.sock --selinux-enabled'/g" /etc/sysconfig/docker
+sed -i "s/# INSECURE_REGISTRY='--insecure-registry '/INSECURE_REGISTRY='--insecure-registry $RegistryAddr'/g" /etc/sysconfig/docker
+
+systemctl enable docker
+
+systemctl restart docker
