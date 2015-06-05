@@ -24,3 +24,12 @@ sed -i "s/# INSECURE_REGISTRY='--insecure-registry '/INSECURE_REGISTRY='--insecu
 systemctl enable docker
 
 systemctl restart docker
+
+
+container.yml为启动容器的模板，命令格式如下：
+heat stack-create -f container.yml container_docker_nginx -P "endpoint=http://172.28.12.2:2375;image_name=nginx;container_name=c1;port_bind={\"80\":\"9008\"}"
+需指定如下参数：
+endpoint：docker deamon服务访问点
+image_name: 镜像名称
+container_name：容器名称
+port_bind：端口映射
