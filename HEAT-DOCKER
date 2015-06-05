@@ -1,0 +1,14 @@
+http://download.opensuse.org/repositories/Cloud:/OpenStack:/Juno/SLE_11_SP3/x86_64/
+
+
+安装heat-docker:
+# sh install.sh
+
+查看是否安装成功：
+# heat resource-type-list | grep Docker
+如果返回DockerInc::Docker::Container，则说明安装成功。
+
+
+#!/bin/bash
+rpm -ivh openstack-heat-plugin-heat_docker-2014.2.4.dev8-1.1.x86_64.rpm  python-docker-py-0.5.3-2.3.x86_64.rpm  python-websocket-client-0.23.0-2.3.x86_64.rpm --nodeps --force
+heatControl -A RESTART
