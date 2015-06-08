@@ -1,0 +1,52 @@
+HeatTemplateFormatVersion: '2012-12-12'
+Parameters:
+  cmd:
+    Default: []
+    Description: Command to run after spawning the container.
+    Type: CommaDelimitedList
+  endpoint: {Description: Docker daemon endpoint (by default the local docker
+      daemon will be used)., Type: String}
+  env: {Description: Set environment variables., Type: String}
+  image_name: {Description: Image name., Type: String}
+  memory: {Default: 0, Description: Memory limit (Bytes)., Type: Number}
+  container_name: {Default: "", Description: Name of the container., Type: String}
+Resources:
+  DockerContainer:
+    Type: DockerInc::Docker::Container
+    Properties:
+      cmd: {Ref: cmd}
+      docker_endpoint: {Ref: endpoint}
+      env:
+        Fn::Split:
+        - ','
+        - {Ref: env}
+      image: {Ref: image_name}
+      memory: {Ref: memory}
+      name: {Ref: container_name}
+      port_bindings:
+          80: 80
+          
+  HeatTemplateFormatVersion: '2012-12-12'
+Parameters:
+  cmd:
+    Default: []
+    Description: Command to run after spawning the container.
+    Type: CommaDelimitedList
+  endpoint: {Description: Docker daemon endpoint (by default the local docker
+      daemon will be used)., Type: String}
+  env: {Description: Set environment variables., Type: CommaDelimitedList}
+  image_name: {Description: Image name., Type: String}
+  memory: {Default: 0, Description: Memory limit (Bytes)., Type: Number}
+  container_name: {Default: "", Description: Name of the container., Type: String}
+Resources:
+  DockerContainer:
+    Type: DockerInc::Docker::Container
+    Properties:
+      cmd: {Ref: cmd}
+      docker_endpoint: {Ref: endpoint}
+      env: {Ref: env}
+      image: {Ref: image_name}
+      memory: {Ref: memory}
+      name: {Ref: container_name}
+      port_bindings:
+          80: 80
