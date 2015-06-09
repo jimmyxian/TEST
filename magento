@@ -1,0 +1,10 @@
+FROM phpro/magento-docker-demo
+
+EXPOSE 80
+
+ADD run.sh /
+
+
+service mysql start
+n98-magerun.phar --root-dir=/var/www config:set web/unsecure/base_url $BASE_URL
+apachectl -DFOREGROUND
