@@ -8,3 +8,29 @@ ADD run.sh /
 service mysql start
 n98-magerun.phar --root-dir=/var/www config:set web/unsecure/base_url $BASE_URL
 apachectl -DFOREGROUND
+
+
+HeatTemplateFormatVersion: '2012-12-12'
+Parameters:
+  endpoint: {Description: Docker daemon endpoint (by default the local docker
+      daemon will be used)., Type: String}
+  env: {Default: "", Description: Set environment variables., Type: String}
+  image_name: {Description: Image name., Type: String}
+  memory: {Default: 0, Description: Memory limit (Bytes)., Type: Number}
+  container_name: {Default: "", Description: Name of the container., Type: String}
+Resources:
+  DockerContainer:
+    Type: DockerInc::Docker::Container
+    Properties:
+      docker_endpoint: {Ref: endpoint}
+      env:
+        Fn::Split:
+        - ','
+        - {Ref: env}
+      image: {Ref: image_name}
+      memory: {Ref: memory}
+      name: {Ref: container_name}
+      port_specs:
+        - 80
+      port_bindings:
+        80: 80
