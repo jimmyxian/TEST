@@ -1,0 +1,58 @@
+docker run --name some-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=magento -e MYSQL_DATABASE=magento -d mysql
+docker run --name magento-demo -p 80:80 --privileged=true --env-file=env -d alexcheng/magento
+
+docker exec -it magento-demo install-sampledata   3分钟
+
+docker exec -it magento-demo install-magento     40秒
+
+update  MYSQL_HOST /  MAGENTO_URL
+命令：
+
+
+
+
+
+MYSQL_HOST=186.100.40.80
+MYSQL_DATABASE=magento
+MYSQL_USER=root
+MYSQL_PASSWORD=magento
+MAGENTO_LOCALE=en_GB
+MAGENTO_TIMEZONE=Pacific/Auckland
+MAGENTO_DEFAULT_CURRENCY=NZD
+MAGENTO_ADMIN_FIRSTNAME=Admin
+MAGENTO_ADMIN_LASTNAME=MyStore
+MAGENTO_URL=http://186.100.40.80
+MAGENTO_ADMIN_EMAIL=admin@admin.com
+MAGENTO_ADMIN_USERNAME=admin
+MAGENTO_ADMIN_PASSWORD=magento@123
+
+
+186.100.40.80
+
+sed -i "s/123456/186.100.40.80/g" /var/www/htdocs/app/etc/local.xml
+
+apache2-foreground
+
+
+
+RUN curl -o /usr/local/bin/n98-magerun.phar https://raw.githubusercontent.com/netz98/n98-magerun/master/n98-magerun.phar && chmod +x /usr/local/bin/n98-magerun.phar
+
+
+docker run -p 80:80 --privileged=true -e BASE_URL=http://186.100.40.80/  -d magento-s2
+
+
+FROM magento-s1:latest
+
+
+ADD run.sh /
+
+CMD ["/bin/bash", "/run.sh"]
+
+
+
+sed -i "s/123456/$MYSQL_HOST/g" /var/www/htdocs/app/etc/local.xml
+
+n98-magerun --root-dir=/var/www/htdocs config:set web/unsecure/base_url $BASE_URL
+n98-magerun --root-dir=/var/www/htdocs config:set web/secure/base_url $BASE_URL
+
+apache2-foreground
