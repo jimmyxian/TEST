@@ -1,0 +1,14 @@
+master:
+docker run -d --name mesos-master --net=host jimenez/mesos-dev:clang /mesos/build/bin/mesos-master.sh --ip=186.100.40.80  --hostname=host80 --work_dir=/ --registry=in_memory --port=3375
+	
+
+slave:
+docker run --privileged -d --name mesos-slave -e DOCKER_HOST="127.0.0.1:2375" -v /sys/fs/cgroup:/sys/fs/cgroup --net=host jimenez/mesos-dev:clang /mesos/build/bin/mesos-slave.sh --master=186.100.40.80:3375 --containerizers=docker --hostname=host80 --port=3376
+	 
+
+docker run -v /home/docker/docker:/usr/bin/docker -v /var/run/docker.sock:/var/run/docker.sock --privileged -d --name mesos-slave -e DOCKER_HOST="127.0.0.1:2375" -v /sys/fs/cgroup:/sys/fs/cgroup --net=host jimenez/mesos-dev:clang /mesos/build/bin/mesos-slave.sh --master=186.100.40.80:3375 --containerizers=docker --hostname=host80 --port=3376
+
+	 
+manager:
+swarm -l debug manage -H 127.0.0.1:2222 --cluster-driver mesos-experimental --cluster-opt mesos.address=186.100.40.82 --cluster-opt mesos.port=3375 --cluster-opt mesos.user=daemon --cluster-opt swarm.overcommit=10 186.100.40.80:3375
+
