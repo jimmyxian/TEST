@@ -12,3 +12,12 @@ docker run -v /home/docker/docker:/usr/bin/docker -v /var/run/docker.sock:/var/r
 manager:
 swarm -l debug manage -H 127.0.0.1:2222 --cluster-driver mesos-experimental --cluster-opt mesos.address=186.100.40.82 --cluster-opt mesos.port=3375 --cluster-opt mesos.user=daemon --cluster-opt swarm.overcommit=10 186.100.40.80:3375
 
+
+busybox:
+  image: busybox:latest
+  name: busybox
+  cpu_shares: 1
+  net: "host"
+  command: sleep 1000
+  environment:
+    constraint: storage==ssd
