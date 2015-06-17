@@ -1,0 +1,62 @@
+
+@test "docker run - reschedule with soft-image-affinity" {
+    start_docker_with_busybox 1
+    start_docker 1
+
+    docker -H ${HOSTS[0]} tag busybox:latest busyboxabcde:latest
+    swarm_manage
+
+    // make sure busyboxabcde exists
+    run docker_swarm images
+    [ "$status" -eq 0 ]
+    [[ "${output}" == *"busyboxabcde"* ]]
+
+    // try to create container on node-1 does not have busyboxabcde and will pull it
+    // but can not find busyboxabcde in dockerhub
+    // then will retry with soft-image-affinity
+    docker_swarm run -d -e --name test_container constraint:node==~node-1 busyboxabcde sleep 1000
+
+    // check container
+    run docker_swarm ps
+    [[ "${output}" == *"node-0/test_container"* ]]
+}
+
+
+
+// AddSoftImageAffinity
+func (c *ContainerConfig) AddSoftImageAffinity(image string) error {
+    affnities_json := c.Labels[SwarmLabelNamespace+".affinities"]
+    var affinities []string
+    json.Unmarshal([]byte(affnities_json), &affinities)
+    affinities = append(affinities, "image==~"+image)
+
+    labels, err := json.Marshal(affinities)
+    if err != nil {
+        return err
+    }
+    c.Labels[SwarmLabelNamespace+".affinities"] = string(labels)
+    return nil
+}
+
+func TestAddSoftImageAffinity(t *testing.T) {
+    config := BuildContainerConfig(dockerclient.ContainerConfig{})
+    assert.Empty(t, config.Affinities())
+
+    AddSoftImageAffinity("testimage")
+    assert.Len(t, config.Affinities(), 1)
+}
+
+
+    container, err := c.createContainer(config, name, false)
+
+    if err != nil && strings.HasSuffix(err.Error(), "not found") {
+        // check if the image exists in the cluster
+        if image := c.Image(config.Image); image != nil{
+            log.Info("Reschduler Flow")
+            container, err = c.createContainer(config, name, true)
+        }
+    }
+    return container, err
+    
+    
+
