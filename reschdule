@@ -59,4 +59,8 @@ func TestAddSoftImageAffinity(t *testing.T) {
     return container, err
     
     
-
+0.30s$ fgt golint ./...
+cluster/config.go:150:1: comment on exported method ContainerConfig.AddSoftImageAffinity should be of the form "AddSoftImageAffinity ..."
+cluster/config.go:152:2: don't use underscores in Go names; var affnities_json should be affnitiesJSON
+cluster/swarm/cluster.go:105:81: don't use underscores in Go names; method parameter with_soft_image_affinity should be withSoftImageAffinity
+cluster/swarm/cluster.go:117:2: don't use underscores in Go names; var config_temp should be configTemp
