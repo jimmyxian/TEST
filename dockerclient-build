@@ -1,0 +1,143 @@
+    v := url.Values{}
+
+    if image.DockerfileName != "" {
+        v.Set("dockerfile", image.DockerfileName)
+    }
+    if image.RepoName != "" {
+        v.Set("t", image.RepoName)
+    }
+    if image.RemoteURL != "" {
+        v.Set("remote", image.RemoteURL)
+    }
+    if image.NoCache {
+        v.Set("nocache", "1")
+    }
+    if image.Pull {
+        v.Set("pull", "1")
+    }
+    if image.Remove {
+        v.Set("rm", "1")
+    }
+    if image.Remove {
+        v.Set("rm", "1")
+    } else {
+        v.Set("rm", "0")
+    }
+    if image.ForceRemove {
+        v.Set("forcerm", "1")
+    }
+    if image.SuppressOutput {
+        v.Set("q", "1")
+    }
+
+    v.Set("memory", strconv.FormatInt(image.Memory, 10))
+    v.Set("memswap", strconv.FormatInt(image.MemorySwap, 10))
+    v.Set("cpushares", strconv.FormatInt(image.CpuShares, 10))
+    v.Set("cpuperiod", strconv.FormatInt(image.CpuPeriod, 10))
+    v.Set("cpuquota", strconv.FormatInt(image.CpuQuota, 10))
+    v.Set("cpusetcpus", image.CpuSetCpus)
+    v.Set("cpusetmems", image.CpuSetMems)
+    v.Set("cgroupparent", image.CgroupParent)
+
+
+    headers := make(map[string]string)
+    if image.Config != nil {
+        encoded_config, err := image.Config.encode()
+        if err != nil {
+            return nil, err
+        }
+
+        headers["X-Registry-Config"] = encoded_config
+    }
+    if image.Context != nil {
+        headers["Content-Type"] = "application/tar"
+    }
+
+    uri := fmt.Sprintf("/%s/build?%s", APIVersion, v.Encode())
+    return client.doStreamRequest("POST", uri, image.Context, headers)
+    
+type BuildImage struct {
+    Config         *ConfigFile
+    DockerfileName string
+    Context        io.Reader
+    RemoteURL      string
+    RepoName       string
+    SuppressOutput bool
+    NoCache        bool
+    Remove         bool
+    ForceRemove    bool
+    Pull           bool
+    Memory         int64
+    MemorySwap     int64
+    CpuShares      int64
+    CpuPeriod      int64
+    CpuQuota       int64
+    CpuSetCpus     string
+    CpuSetMems     string
+    CgroupParent   string
+}
+
+
+
+package main
+
+import (
+    "archive/tar"
+    "bytes"
+    "fmt"
+    "github.com/samalba/dockerclient"
+    "io/ioutil"
+)
+
+func main() {
+    // Init the client
+    docker, _ := dockerclient.NewDockerClient("unix:///var/run/docker.sock", nil)
+
+    files := make(map[string]string)
+    files["Dockerfile"] = "FROM busybox"
+
+    buf := new(bytes.Buffer)
+    tw := tar.NewWriter(buf)
+    for k, v := range files {
+        hdr := &tar.Header{
+            Name: k,
+            Size: int64(len(v)),
+        }
+        err := tw.WriteHeader(hdr)
+        if err != nil {
+            return
+        }
+        _, err = tw.Write([]byte(v))
+        if err != nil {
+            return
+        }
+    }
+        image := dockerclient.BuildImage{
+        Config:         nil,
+        DockerfileName: "",
+        Context:        buf,
+        RemoteURL:      "",
+        RepoName:       "testimage:ok",
+        SuppressOutput: false,
+        NoCache:        false,
+        Remove:         false,
+        ForceRemove:    false,
+        Pull:           true,
+        Memory:         0,
+        MemorySwap:     0,
+        CpuShares:      0,
+        CpuPeriod:      0,
+        CpuQuota:       0,
+        CpuSetCpus:     "",
+        CpuSetMems:     "",
+        CgroupParent:   "",
+    }
+
+    reader, err := docker.BuildImage(image)
+    if err != nil {
+        fmt.Printf("%s", err.Error())
+    }
+    data, _ := ioutil.ReadAll(reader)
+
+    fmt.Printf("%s", data)
+}
