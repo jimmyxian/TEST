@@ -1,0 +1,76 @@
+
+swarm docker TLS配置
+
+为了保证swarm集群的通信安全，可采用TLS协议进行加密传输，如下所示。
+dockerclient <--(TLS)--> swarm <--(TLS)--> docker deamon
+
+1、配置域名解析
+在swarm节点上，修改/etc/hosts，增加node1、node2对应的ip
+在docker deamon节点上，修改/etc/hosts，增加swarm对应的ip
+在docker client节点上（运行docker命令访问swarm的节点），修改/etc/hosts，增加swarm对应的ip
+
+2、证书
+在配置过程中，需要生成3类证书，分别用于dockerclient、swarm以及docker deamon，具体生成方法如下：
+2.1、生成CA证书
+（1）生成私钥
+#openssl genrsa -out CAkey.pem 2048
+（2）生成CA证书
+#openssl req -new -key CAkey.pem -x509 -days 3650 -out ca.pem
+（3）生成openssl.cnf
+echo "extendedKeyUsage = clientAuth,serverAuth" > openssl.cnf
+否则后续会出现，tls: client's certificate's extended key usage doesn't permit it to be used for client authentication
+
+2.2生成swarm节点证书
+（1）生成私钥
+#openssl genrsa -out swarmKEY.pem 2048
+（2）生成证书CSR
+openssl req -subj "/CN=swarm" -new -key swarmKEY.pem -out swarm.csr
+（3）用CA证书进行签名
+openssl x509 -req -days 3650 -in swarm.csr -CA ca.pem -CAkey CAkey.pem -CAcreateserial -out swarmCRT.pem -extfile openssl.cnf
+openssl rsa -in swarmKEY.pem -out swarmKEY.pem
+
+2.3、生成docker deamon节点的证书
+（1）生成私钥
+openssl genrsa -out node01KEY.pem 2048
+（2）生成证书CSR
+openssl req -subj "/CN=nodex" -new -key node01KEY.pem -out node01.csr
+（3）用CA证书进行签名
+openssl x509 -req -days 3650 -in node01.csr -CA ca.pem -CAkey CAkey.pem -CAcreateserial -out node01CRT.pem -extfile openssl.cnf
+openssl rsa -in node01KEY.pem -out node01KEY.pem
+备注：如果有多个docker deamon节点，需要改变node01为实际的节点名，多次生成。本次试验采用两个节点node1、node2
+
+2.4、生成docker client证书
+（1）生成私钥
+openssl genrsa -out localKEY.pem 2048
+（2）生成证书CSR
+openssl req -subj "/CN=HOSTNAME" -new -key localKEY.pem -out local.csr
+备注：HOSTNAME为docker client节点的主机名
+（3）用CA证书进行签名
+openssl x509 -req -days 3650 -in local.csr -CA ca.pem -CAkey CAkey.pem -CAcreateserial -out localCRT.pem -extfile openssl.cnf
+openssl rsa -in localKEY.pem -out localKEY.pem
+
+3、配置TLS
+3.1 docker deamon TLS配置
+（1）修改/etc/sysconfig/docker配置文件中的OPTION字段
+OPTIONS='--tlsverify --tlscacert=/home/key/ca.pem --tlscert=/home/key/node0xCRT.pem --tlskey=/home/key/node0xKEY.pem -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock'
+
+（2）修改完后重启docker
+systemctl restart docker
+3.2 swarm TLS配置
+启动swarm manage，本次试验采用静态IP的方法指定docker deamon地址，指定时必须采用节点名称（非IP）。如果采用服务发现（etcd、zk、consul），swarm join的时 --addr 也需要采用节点名称（非IP）。
+swarm manage --tlsverify --tlscacert=/home/key/ca.pem --tlscert=/home/key/swarmCRT.pem --tlskey=/home/key/swarmKEY.pem --host=0.0.0.0:2376 node1:2375 node2:2375
+3.3 docker client配置
+使用docker命令访问swarm时，需要指定证书，格式如下：
+docker --tlsverify --tlscacert=/home/key/ca.pem --tlscert=/home/key/localCRT.pem --tlskey=/home/key/localKEY.pem -H swarm:2376 info
+
+4、验证
+在docker client主机上运行以下测试：
+（1）异常场景，不指定证书
+docker -H swarm:2376 info，提示出错，需要TLS认证
+FATA[0000] Get http://swarm:2376/v1.18/containers/json: malformed HTTP response "\x15\x03\x01\x00\x02\x02". Are you trying to connect to a TLS-enabled daemon without TLS? 
+（2）正常场景，在访问时，需要指定证书
+docker --tlsverify --tlscacert=/home/key/ca.pem --tlscert=/home/key/localCRT.pem --tlskey=/home/key/localKEY.pem -H swarm:2376 info
+可以看到两个节点的信息
+docker --tlsverify --tlscacert=/home/key/ca.pem --tlscert=/home/key/localCRT.pem --tlskey=/home/key/localKEY.pem -H swarm:2376 run -d busybox sleep 1000
+可以看到成功创建容器
+
