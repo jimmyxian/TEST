@@ -1,0 +1,102 @@
+func postBuildImage(c *context, w http.ResponseWriter, r *http.Request) {
+    if err := r.ParseForm(); err != nil {
+        httpError(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    buildImage := &dockerclient.BuildImage{}
+    buildImage.DockerfileName =  r.Form.Get("dockerfile")
+    buildImage.RepoName = r.Form.Get("t")
+    buildImage.RemoteURL = r.Form.Get("remote")
+    buildImage.NoCache = boolValue(r, "nocache")
+    buildImage.Pull = boolValue(r, "pull")
+    buildImage.Remove = boolValue(r, "rm")
+    buildImage.ForceRemove = boolValue(r, "forcerm")
+    buildImage.SuppressOutput = boolValue(r, "q")
+    buildImage.Memory = int64ValueOrZero(r, "memory")
+    buildImage.MemorySwap = int64ValueOrZero(r, "memswap")
+    buildImage.CpuShares = int64ValueOrZero(r, "cpushares")
+    buildImage.CpuPeriod = int64ValueOrZero(r, "cpuperiod")
+    buildImage.CpuQuota = int64ValueOrZero(r, "cpuquota")
+    buildImage.CpuSetCpus = r.Form.Get("cpusetcpus")
+    buildImage.CpuSetMems =  r.Form.Get("cpusetmems")
+    buildImage.CgroupParent = r.Form.Get("cgroupparent")
+    buildImage.Context = r.Body
+
+    authEncoded := r.Header.Get("X-Registry-Auth")
+    if authEncoded != "" {
+        buf, err := base64.URLEncoding.DecodeString(r.Header.Get("X-Registry-Auth"))
+        if err == nil {
+            json.Unmarshal(buf, &buildImage.Config)
+        }
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    wf := NewWriteFlusher(w)
+    c.cluster.BuildImage(buildImage, wf)
+}
+
+
+
+
+func int64ValueOrZero(r *http.Request, k string) int64 {
+    val, err := strconv.ParseInt(r.FormValue(k), 10, 64)
+    if err != nil {
+        return 0
+    }
+    return val
+}
+
+
+
+func TestInti64ValueOrZero(t *testing.T) {
+    cases := map[string]int64{
+        "":     0,
+        "asdf": 0,
+        "0":    0,
+        "1":    1,
+    }
+
+    for c, e := range cases {
+        v := url.Values{}
+        v.Set("test", c)
+        r, _ := http.NewRequest("POST", "", nil)
+        r.Form = v
+
+        a := int64ValueOrZero(r, "test")
+        if a != e {
+            t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
+        }
+    }
+}
+
+    // BuildImage build an image
+    BuildImage(*dockerclient.BuildImage, io.Writer) error
+    
+    
+    
+// BuildImage build an image
+func (e *Engine) BuildImage(buildImage *dockerclient.BuildImage) (io.Reader, error){
+
+    return e.client.BuildImage(*buildImage)
+}
+
+// BuildImage build an image
+func (c *Cluster) BuildImage(buildImage *dockerclient.BuildImage, out io.Writer) error {
+    // get a random engine
+    randomEngine,_ := c.RANDOMENGINE()
+
+    reader, err := randomEngine.BuildImage(buildImage)
+    if err != nil {
+        return err
+    }
+
+    io.Copy(out, reader)
+
+    return nil
+}
+
+    // BuildImage build a image
+func (c *Cluster) BuildImage(*dockerclient.BuildImage, io.Writer) error {
+    return nil
+}
