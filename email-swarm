@@ -1,0 +1,9 @@
+Hi, all
+I have some questions that many people ask me in China. And I want listen to your answers. :)
+(1) What is the difference between Swarm and Kubernetes? Advantage and Disadvantage? In Which situation, should use Swarm?
+(2) In Swarm roadmap(The first integration will be Mesos but other tools will arrive after, like Kubernetes), 
+    we can find that swarm will integrate Kubernetes. Do you have some details infomation about this. How, When?
+(3) When swarm can be Readay for production? 
+(4) Any company have already use swarm? 
+(5) Max Swarm cluster size?
+
