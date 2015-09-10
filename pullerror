@@ -1,0 +1,26 @@
+
+type JSONError struct {
+    Code    int    `json:"code,omitempty"`
+    Message string `json:"message,omitempty"`
+}
+
+func sendJSONMessage(w io.Writer, id, status string, bError bool) {
+    if bError {
+        error := JSONError {
+            Code:1,
+            Message: "hello world",
+        }
+        message := struct {
+            ID       string      `json:"id,omitempty"`
+            Status   string      `json:"status,omitempty"`
+            Error           *JSONError    `json:"errorDetail,omitempty"`
+            Progress interface{} `json:"progressDetail,omitempty"`
+        }{
+            id,
+            status,
+            &error,
+            struct{}{}, // this is required by the docker cli to have a proper display
+        }
+
+        json.NewEncoder(w).Encode(message)
+    } 
