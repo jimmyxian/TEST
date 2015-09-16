@@ -1,0 +1,36 @@
+1、docker社区新特性
+docker项目对外提供了volume api，支持的命令有ls/create/rm/inspect
+https://github.com/docker/docker/pull/14242
+swarm项目正在对volume api的实现进行讨论
+https://github.com/docker/swarm/issues/1189
+
+2、Kuryr项目致力于让Neutron拥抱容器
+Kuryr一词来自捷克语，意思是“信使”。在OpenStack的大家庭里，Kuryr正在尝试做一项具有重大意义的工作，即把容器和Docker网络加入到Neutron解决方案和网络服务的使用中，从而弥补其中现存的差距。
+https://www.ustack.com/news/project-kuryr-brings-container-networking-to-openstack-neutron/
+
+3、OpenStack基金会发布白皮书，推进容器技术
+OpenStack基金会近日发布白皮书，介绍了在OpenStack基础设施中容器的使用价值、如何使用OpenStack Nova搭建容器托管环境、OpenStack Compute项目、OpenStack的容器管理、容器相关服务、新版OpenStack，以及一些使用案例
+http://www.infoq.com/cn/news/2015/09/OpenStack-white
+http://www.openstack.org/containers
+
+4、Docker on Windows
+微软发布了Windows Server 2016 Technical Preview 3 (TP3)技术预览版，新版本中加入了对Docker技术的支持，即Windows Server Containers的第1个预览版本。
+https://msdn.microsoft.com/en-us/virtualization/windowscontainers/quick_start/manage_docker
+https://blog.docker.com/2015/08/tp-docker-engine-windows-server-2016/
+
+
+5、Verizon建设巨型物联网集群 100秒可启动五万个Docker容器
+Verizon 8月20日在美国西雅图举办的Mesos大会上花了100秒就启动了五万个Docker容器。Verizon五万个容器的集群由Mesosphere数据中心操作系统（DCOS）驱动，目的是保障Verizon日益增长的物联网业务。
+http://www.csdn.net/article/2015-08-31/2825588
+
+6、Speedy：来自京东的Docker镜像存储系统
+镜像是Docker项目最大的创新点之一，所有的Docker容器都源于镜像。不可否认镜像存储是Docker工作流中的重要一环，Docker Registry是官方提供的开源项目用以保存镜像，同时它也提供了后端存储系统来解决镜像的落地问题，比如Local Filesystem、S3、Swift。Speedy是由京东开源的一个分布式镜像后端存储系统，在架构设计上更好的解决了扩展性和可用性的问题。
+http://www.infoq.com/cn/news/2015/09/speedy-docker-image-storage
+
+7、监控宝首推Docker监控 确保容器稳定运行
+监控宝在国内率先实现了对Docker监控的支持，实时监控Docker容器的CPU、内存、网络流量及Swap状态，让您在使用Docker时清晰掌握其资源消耗状况。
+http://www.jiankongbao.com/new_docker
+
+8、Docker是否适用于开发环境？
+观点| Docker根本不适合用于本地开发环境 http://dockone.io/article/660
+反驳| Docker挺适合用于软件开发环境 http://dockone.io/article/672
