@@ -1,53 +1,35 @@
 diff --git a/magnum/templates/swarm/fragments/configure-swarm.sh b/magnum/templates/swarm/fragments/configure-swarm.sh
-index 2ee78e3..6f704d3 100644
+index 6f704d3..99e4848 100644
 --- a/magnum/templates/swarm/fragments/configure-swarm.sh
 +++ b/magnum/templates/swarm/fragments/configure-swarm.sh
-@@ -5,3 +5,13 @@ echo "configuring swarm ..."
+@@ -1,5 +1,6 @@
+ #!/bin/sh
+ # This shell script will do some extra configure stuff before running services
++. /etc/sysconfig/heat-params
 
- # Add --storage-driver devicemapper to DOCKER_STORAGE_OPTIONS
+ echo "configuring swarm ..."
+
+@@ -7,11 +8,10 @@ echo "configuring swarm ..."
  sed -i '/^DOCKER_STORAGE_OPTIONS=/ s/=.*/=--storage-driver devicemapper --storage-opt dm.fs=xfs --storage-opt dm.datadev=\/dev\/mapper\/atomicos-docker--data --storage-opt dm.metadatadev=\/dev\/mapper\/atomicos-docker--meta/' /etc/sysconfig/docker-storage
-+
-+# Set swarm image
-+SWARM_IMAGE="swarm:1.0.0"
-+if [ -f "/etc/systemd/system/swarm-manager.service" ]; then
-+    sed -i 's/SWARM_IMAGE/'"${SWARM_IMAGE}"'/g' /etc/systemd/system/swarm-manager.service
-+fi
-+
-+if [ -f "/etc/systemd/system/swarm-agent.service" ]; then
-+    sed -i 's/SWARM_IMAGE/'"${SWARM_IMAGE}"'/g' /etc/systemd/system/swarm-agent.service
-+fi
-diff --git a/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml b/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml
-index b489289..269073d 100644
---- a/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml
-+++ b/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml
-@@ -15,8 +15,8 @@ write_files:
-       TimeoutStartSec=0
-       ExecStartPre=-/usr/bin/docker kill swarm-agent
-       ExecStartPre=-/usr/bin/docker rm swarm-agent
--      ExecStartPre=-/usr/bin/docker pull swarm:1.0.0
--      ExecStart=/usr/bin/docker run -e http_proxy=$HTTP_PROXY -e https_proxy=$HTTPS_PROXY -e no_proxy=$NO_PROXY  --name swarm-agent swarm:1.0.0 join --addr $NODE_IP:2375 $DISCOVERY_URL
-+      ExecStartPre=-/usr/bin/docker pull SWARM_IMAGE
-+      ExecStart=/usr/bin/docker run -e http_proxy=$HTTP_PROXY -e https_proxy=$HTTPS_PROXY -e no_proxy=$NO_PROXY  --name swarm-agent SWARM_IMAGE join --addr $NODE_IP:2375 $DISCOVERY_URL
-       ExecStop=/usr/bin/docker stop swarm-agent
-       ExecStartPost=/usr/bin/curl -sf -X PUT -H 'Content-Type: application/json' \
-         --data-binary '{"Status": "SUCCESS", "Reason": "Setup complete", "Data": "OK", "UniqueId": "00000"}' \
-diff --git a/magnum/templates/swarm/fragments/write-swarm-master-service.sh b/magnum/templates/swarm/fragments/write-swarm-master-service.sh
-index 3131d1b..4efa668 100644
---- a/magnum/templates/swarm/fragments/write-swarm-master-service.sh
-+++ b/magnum/templates/swarm/fragments/write-swarm-master-service.sh
-@@ -11,14 +11,14 @@ OnFailure=swarm-manager-failure.service
- TimeoutStartSec=0
- ExecStartPre=-/usr/bin/docker kill swarm-manager
- ExecStartPre=-/usr/bin/docker rm swarm-manager
--ExecStartPre=-/usr/bin/docker pull swarm:1.0.0
-+ExecStartPre=-/usr/bin/docker pull SWARM_IMAGE
- ExecStart=/usr/bin/docker run --name swarm-manager \\
-                               -v /etc/docker:/etc/docker \\
-                               -p 2376:2375 \\
-                               -e http_proxy=$HTTP_PROXY \\
-                               -e https_proxy=$HTTPS_PROXY \\
-                               -e no_proxy=$NO_PROXY \\
--                              swarm:1.0.0 \\
-+                              SWARM_IMAGE \\
-                               manage -H tcp://0.0.0.0:2375 \\
- END_SERVICE_TOP
+
+ # Set swarm image
+-SWARM_IMAGE="swarm:1.0.0"
+ if [ -f "/etc/systemd/system/swarm-manager.service" ]; then
+-    sed -i 's/SWARM_IMAGE/'"${SWARM_IMAGE}"'/g' /etc/systemd/system/swarm-manager.service
++    sed -i 's/SWARM_IMAGE/'"${SWARM_IMAGE_NAME}:${SWARM_IMAGE_VERSION}"'/g' /etc/systemd/system/swarm-manager.service
+ fi
+
+ if [ -f "/etc/systemd/system/swarm-agent.service" ]; then
+-    sed -i 's/SWARM_IMAGE/'"${SWARM_IMAGE}"'/g' /etc/systemd/system/swarm-agent.service
++    sed -i 's/SWARM_IMAGE/'"${SWARM_IMAGE_NAME}:${SWARM_IMAGE_VERSION}"'/g' /etc/systemd/system/swarm-agent.service
+ fi
+diff --git a/magnum/templates/swarm/fragments/write-heat-params.yaml b/magnum/templates/swarm/fragments/write-heat-params.yaml
+index 9a7a58c..2a01d60 100644
+--- a/magnum/templates/swarm/fragments/write-heat-params.yaml
++++ b/magnum/templates/swarm/fragments/write-heat-params.yaml
+@@ -15,3 +15,5 @@ write_files:
+       USER_TOKEN="$USER_TOKEN"
+       MAGNUM_URL="$MAGNUM_URL"
+       TLS_DISABLED="$TLS_DISABLED"
++      SWARM_IMAGE_NAME="swarm"
++      SWARM_IMAGE_VERSION="1.0.0"
