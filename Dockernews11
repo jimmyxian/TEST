@@ -1,0 +1,29 @@
+值得关注的八个Docker新闻【2015.11.1至2015.11.15】
+1、分析 | 有关Docker的八个令人难以置信的事实
+这一年Docker技术蓬勃发展，Datadog公司从其独特的视角，基于其监控的第一手数据，分析报告了Docker使用相关的八大事实，
+同时也详细介绍了他们取样，分析的方法论。很有意思，值得一读。
+http://dockone.io/article/822
+
+2、【DockerCon】Swarm发布1.0版本，1个Swarm Manager可以在1000节点创建出30000容器
+http://blog.docker.com/2015/11/scale-testing-docker-swarm-30000-containers/
+
+3、【DockerCon】发布Docker Trusted Registry 1.4 以及 Universal Control Plane
+http://blog.docker.com/2015/11/dockercon-eu-2015-docker-universal-control-plane/
+
+4、【DockerCon】Docker公司提出将重点关注容器安全
+本文是对欧洲DockerCon大会的简短报道。重点在Docker容器安全领域的新特性，对于在生产环境中更安全使用Docker有很大的参考价值。
+http://dockone.io/article/833
+
+5、Google发布Kubernetes 1.1
+https://github.com/kubernetes/kubernetes/releases
+http://dockone.io/article/818
+
+6、Swarm、Fleet、Kubernetes、Mesos - 编排工具的对比分析
+http://dockone.io/article/823
+
+7、蘑菇街11.11：私有云平台的Docker应用实践
+http://www.infoq.com/cn/articles/mogujie-11-11-private-cloud-platform-docker-application
+
+8、数人发布数人云,基于Mesos，正在公测中
+http://blog.dataman-inc.com/20151118-shurenyun-gongce/
+https://www.shurenyun.com/
