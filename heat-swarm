@@ -1,0 +1,101 @@
+diff --git a/magnum/templates/swarm/fragments/write-heat-params.yaml b/magnum/templates/swarm/fragments/write-heat-params.yaml
+index c3d3ac3..23d7beb 100644
+--- a/magnum/templates/swarm/fragments/write-heat-params.yaml
++++ b/magnum/templates/swarm/fragments/write-heat-params.yaml
+@@ -21,3 +21,4 @@ write_files:
+       FLANNEL_NETWORK_CIDR="$FLANNEL_NETWORK_CIDR"
+       FLANNEL_NETWORK_SUBNETLEN="$FLANNEL_NETWORK_SUBNETLEN"
+       FLANNEL_USE_VXLAN="$FLANNEL_USE_VXLAN"
++      SWARM_VERSION="$SWARM_VERSION"
+diff --git a/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml b/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml
+index 63300cd..b5ffb50 100644
+--- a/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml
++++ b/magnum/templates/swarm/fragments/write-swarm-agent-service.yaml
+@@ -15,8 +15,8 @@ write_files:
+       TimeoutStartSec=0
+       ExecStartPre=-/usr/bin/docker kill swarm-agent
+       ExecStartPre=-/usr/bin/docker rm swarm-agent
+-      ExecStartPre=-/usr/bin/docker pull swarm:1.0.0
+-      ExecStart=/usr/bin/docker run -e http_proxy=$HTTP_PROXY -e https_proxy=$HTTPS_PROXY -e no_proxy=$NO_PROXY  --name swarm-agent swarm:1.0.0 join --addr $NODE_IP:2375 etcd://$SWARM_MASTER_IP:2379/v2/keys/swarm/
++      ExecStartPre=-/usr/bin/docker pull swarm:$SWARM_VERSION
++      ExecStart=/usr/bin/docker run -e http_proxy=$HTTP_PROXY -e https_proxy=$HTTPS_PROXY -e no_proxy=$NO_PROXY  --name swarm-agent swarm:$SWARM_VERSION join --addr $NODE_IP:2375 etcd://$SWARM_MASTER_IP:2379/v2/keys/swarm/
+       ExecStop=/usr/bin/docker stop swarm-agent
+       ExecStartPost=/usr/bin/curl -sf -X PUT -H 'Content-Type: application/json' \
+         --data-binary '{"Status": "SUCCESS", "Reason": "Setup complete", "Data": "OK", "UniqueId": "00000"}' \
+diff --git a/magnum/templates/swarm/fragments/write-swarm-master-service.sh b/magnum/templates/swarm/fragments/write-swarm-master-service.sh
+index 2423ad2..f169327 100644
+--- a/magnum/templates/swarm/fragments/write-swarm-master-service.sh
++++ b/magnum/templates/swarm/fragments/write-swarm-master-service.sh
+@@ -11,14 +11,14 @@ OnFailure=swarm-manager-failure.service
+ TimeoutStartSec=0
+ ExecStartPre=-/usr/bin/docker kill swarm-manager
+ ExecStartPre=-/usr/bin/docker rm swarm-manager
+-ExecStartPre=-/usr/bin/docker pull swarm:1.0.0
++ExecStartPre=-/usr/bin/docker pull swarm:$SWARM_VERSION
+ ExecStart=/usr/bin/docker run --name swarm-manager \\
+                               -v /etc/docker:/etc/docker \\
+                               -p 2376:2375 \\
+                               -e http_proxy=$HTTP_PROXY \\
+                               -e https_proxy=$HTTPS_PROXY \\
+                               -e no_proxy=$NO_PROXY \\
+-                              swarm:1.0.0 \\
++                              swarm:$SWARM_VERSION \\
+                               manage -H tcp://0.0.0.0:2375 \\
+ END_SERVICE_TOP
+
+diff --git a/magnum/templates/swarm/swarm.yaml b/magnum/templates/swarm/swarm.yaml
+index b408d84..6b05eac 100644
+--- a/magnum/templates/swarm/swarm.yaml
++++ b/magnum/templates/swarm/swarm.yaml
+@@ -116,6 +116,11 @@ parameters:
+     constraints:
+       - allowed_values: ["true", "false"]
+
++  swarm_version:
++    type: string
++    description: version of swarm used for swarm cluster
++    default: 1.0.0
++
+ resources:
+
+   cloud_init_wait_handle:
+@@ -330,6 +335,7 @@ resources:
+             "$HTTP_PROXY": {get_param: http_proxy}
+             "$HTTPS_PROXY": {get_param: https_proxy}
+             "$NO_PROXY": {get_param: no_proxy}
++            "$SWARM_VERSION": {get_param: swarm_version}
+
+   write_swarm_master_service:
+     type: "OS::Heat::SoftwareConfig"
+@@ -346,6 +352,7 @@ resources:
+             "$HTTPS_PROXY": {get_param: https_proxy}
+             "$NO_PROXY": {get_param: no_proxy}
+             "$TLS_DISABLED": {get_param: tls_disabled}
++            "$SWARM_VERSION": {get_param: swarm_version}
+
+   enable_services:
+     type: "OS::Heat::SoftwareConfig"
+diff --git a/magnum/templates/swarm/swarmnode.yaml b/magnum/templates/swarm/swarmnode.yaml
+index bd8885e..d2a97f4 100644
+--- a/magnum/templates/swarm/swarmnode.yaml
++++ b/magnum/templates/swarm/swarmnode.yaml
+@@ -84,6 +84,11 @@ parameters:
+     type: boolean
+     description: whether or not to disable TLS
+
++  swarm_version:
++    type: string
++    description: version of swarm used for swarm cluster
++    default: 1.0.0
++
+ resources:
+
+   node_cloud_init_wait_handle:
+@@ -218,6 +223,7 @@ resources:
+             "$HTTP_PROXY": {get_param: http_proxy}
+             "$HTTPS_PROXY": {get_param: https_proxy}
+             "$NO_PROXY": {get_param: no_proxy}
++            "$SWARM_VERSION": {get_param: swarm_version}
+
+   enable_services:
+     type: "OS::Heat::SoftwareConfig"
