@@ -1,0 +1,364 @@
+diff --git a/magnum/api/controllers/v1/container.py b/magnum/api/controllers/v1/container.py
+index 63be101..7a1f997 100644
+--- a/magnum/api/controllers/v1/container.py
++++ b/magnum/api/controllers/v1/container.py
+@@ -94,6 +94,9 @@ class Container(base.APIBase):
+     memory = wtypes.text
+     """Memory limit for the container. Example: 512m"""
+ 
++    environment = wtypes.DictType(str, str)
++    """One or more key/value pairs"""
++
+     def __init__(self, **kwargs):
+         self.fields = []
+         for field in objects.Container.fields:
+@@ -108,7 +111,7 @@ class Container(base.APIBase):
+         if not expand:
+             container.unset_fields_except(['uuid', 'name', 'bay_uuid',
+                                            'image', 'command', 'status',
+-                                           'memory'])
++                                           'memory', 'environment'])
+ 
+         container.links = [link.Link.make_link(
+             'self', url,
+@@ -133,6 +136,7 @@ class Container(base.APIBase):
+                      command='env',
+                      status='Running',
+                      memory='512m',
++                     environment={'key1': 'val1', 'key2': 'val2'},
+                      bay_uuid="fff114da-3bfa-4a0f-a123-c0dffad9718e",
+                      created_at=timeutils.utcnow(),
+                      updated_at=timeutils.utcnow())
+diff --git a/magnum/conductor/handlers/docker_conductor.py b/magnum/conductor/handlers/docker_conductor.py
+index 7531a18..24b4e56 100644
+--- a/magnum/conductor/handlers/docker_conductor.py
++++ b/magnum/conductor/handlers/docker_conductor.py
+@@ -79,7 +79,8 @@ class Handler(object):
+                 docker.create_container(image, name=name,
+                                         hostname=container_uuid,
+                                         command=container.command,
+-                                        mem_limit=container.memory)
++                                        mem_limit=container.memory,
++                                        environment=container.environment)
+                 container.status = fields.ContainerStatus.STOPPED
+                 return container
+             except errors.APIError:
+diff --git a/magnum/db/sqlalchemy/api.py b/magnum/db/sqlalchemy/api.py
+index d60ef00..f9f9914 100644
+--- a/magnum/db/sqlalchemy/api.py
++++ b/magnum/db/sqlalchemy/api.py
+@@ -403,7 +403,7 @@ class Connection(api.Connection):
+             filters = {}
+ 
+         filter_names = ['name', 'image', 'project_id', 'user_id',
+-                        'memory', 'bay_uuid']
++                        'memory', 'bay_uuid', 'environment']
+         for name in filter_names:
+             if name in filters:
+                 query = query.filter_by(**{name: filters[name]})
+diff --git a/magnum/db/sqlalchemy/models.py b/magnum/db/sqlalchemy/models.py
+index 8a59cb4..678ee4b 100644
+--- a/magnum/db/sqlalchemy/models.py
++++ b/magnum/db/sqlalchemy/models.py
+@@ -196,6 +196,7 @@ class Container(Base):
+     bay_uuid = Column(String(36))
+     status = Column(String(20))
+     memory = Column(String(255))
++    environment = Column(JSONEncodedDict)
+ 
+ 
+ class Node(Base):
+diff --git a/magnum/objects/container.py b/magnum/objects/container.py
+index fc754ff..4f3c71d 100644
+--- a/magnum/objects/container.py
++++ b/magnum/objects/container.py
+@@ -23,7 +23,8 @@ class Container(base.MagnumPersistentObject, base.MagnumObject,
+                 base.MagnumObjectDictCompat):
+     # Version 1.0: Initial version
+     # Version 1.1: Add memory field
+-    VERSION = '1.1'
++    # Version 1.2: Add environment field
++    VERSION = '1.2'
+ 
+     dbapi = dbapi.get_instance()
+ 
+@@ -38,6 +39,7 @@ class Container(base.MagnumPersistentObject, base.MagnumObject,
+         'bay_uuid': fields.StringField(nullable=True),
+         'status': m_fields.ContainerStatusField(nullable=True),
+         'memory': fields.StringField(nullable=True),
++        'environment': fields.DictOfStringsField(nullable=True),
+     }
+ 
+     @staticmethod
+diff --git a/magnum/tests/unit/api/controllers/v1/test_container.py b/magnum/tests/unit/api/controllers/v1/test_container.py
+index 265b7bc..2a03571 100644
+--- a/magnum/tests/unit/api/controllers/v1/test_container.py
++++ b/magnum/tests/unit/api/controllers/v1/test_container.py
+@@ -45,7 +45,8 @@ class TestContainerController(api_base.FunctionalTest):
+ 
+         params = ('{"name": "My Docker", "image": "ubuntu",'
+                   '"command": "env", "memory": "512m",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+         response = self.app.post('/v1/containers',
+                                  params=params,
+                                  content_type='application/json')
+@@ -64,7 +65,8 @@ class TestContainerController(api_base.FunctionalTest):
+ 
+         params = ('{"name": "My Docker", "image": "ubuntu",'
+                   '"command": "env", "memory": "512m",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+         self.app.post('/v1/containers',
+                       params=params,
+                       content_type='application/json')
+@@ -80,7 +82,8 @@ class TestContainerController(api_base.FunctionalTest):
+         # Create a container with a command
+         params = ('{"name": "My Docker", "image": "ubuntu",'
+                   '"command": "env", "memory": "512m",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+         response = self.app.post('/v1/containers',
+                                  params=params,
+                                  content_type='application/json')
+@@ -98,6 +101,8 @@ class TestContainerController(api_base.FunctionalTest):
+         self.assertEqual('env', c.get('command'))
+         self.assertEqual('Stopped', c.get('status'))
+         self.assertEqual('512m', c.get('memory'))
++        self.assertEqual({"key1": "val1", "key2": "val2"},
++                         c.get('environment'))
+         # Delete the container we created
+         response = self.app.delete('/v1/containers/%s' % c.get('uuid'))
+         self.assertEqual(204, response.status_int)
+@@ -119,7 +124,8 @@ class TestContainerController(api_base.FunctionalTest):
+         # Create a container with a command
+         params = ('{"name": "My Docker", "image": "ubuntu",'
+                   '"command": "env", "memory": "512m",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+         response = self.app.post('/v1/containers',
+                                  params=params,
+                                  content_type='application/json')
+@@ -137,6 +143,8 @@ class TestContainerController(api_base.FunctionalTest):
+         self.assertEqual('env', c.get('command'))
+         self.assertEqual('Stopped', c.get('status'))
+         self.assertEqual('512m', c.get('memory'))
++        self.assertEqual({"key1": "val1", "key2": "val2"},
++                         c.get('environment'))
+         # Delete the container we created
+         response = self.app.delete('/v1/containers/%s' % c.get('uuid'))
+         self.assertEqual(204, response.status_int)
+@@ -156,7 +164,8 @@ class TestContainerController(api_base.FunctionalTest):
+         # Create a container with a command
+         params = ('{"name": "My Docker", "image": "ubuntu",'
+                   '"command": "env",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+         response = self.app.post('/v1/containers',
+                                  params=params,
+                                  content_type='application/json')
+@@ -174,12 +183,44 @@ class TestContainerController(api_base.FunctionalTest):
+         self.assertEqual('env', c.get('command'))
+         self.assertEqual('Stopped', c.get('status'))
+         self.assertIsNone(c.get('memory'))
++        self.assertEqual({"key1": "val1", "key2": "val2"},
++                         c.get('environment'))
++
++    @patch('magnum.conductor.api.API.container_show')
++    @patch('magnum.conductor.api.API.container_create')
++    def test_create_container_without_environment(self,
++                                                  mock_container_create,
++                                                  mock_container_show):
++        mock_container_create.side_effect = lambda x: x
++        # Create a container with a command
++        params = ('{"name": "My Docker", "image": "ubuntu",'
++                  '"command": "env", "memory": "512m",'
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++        response = self.app.post('/v1/containers',
++                                 params=params,
++                                 content_type='application/json')
++        self.assertEqual(201, response.status_int)
++        # get all containers
++        container = objects.Container.list(self.context)[0]
++        container.status = 'Stopped'
++        mock_container_show.return_value = container
++        response = self.app.get('/v1/containers')
++        self.assertEqual(200, response.status_int)
++        self.assertEqual(1, len(response.json))
++        c = response.json['containers'][0]
++        self.assertIsNotNone(c.get('uuid'))
++        self.assertEqual('My Docker', c.get('name'))
++        self.assertEqual('env', c.get('command'))
++        self.assertEqual('Stopped', c.get('status'))
++        self.assertEqual('512m', c.get('memory'))
++        self.assertEqual({}, c.get('environment'))
+ 
+     @patch('magnum.conductor.api.API.container_create')
+     def test_create_container_without_name(self, mock_container_create):
+         # No name param
+         params = ('{"image": "ubuntu", "command": "env", "memory": "512m",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+         self.assertRaises(AppError, self.app.post, '/v1/containers',
+                           params=params, content_type='application/json')
+         self.assertTrue(mock_container_create.not_called)
+@@ -189,7 +230,8 @@ class TestContainerController(api_base.FunctionalTest):
+         # Long name
+         params = ('{"name": "' + 'i' * 256 + '", "image": "ubuntu",'
+                   '"command": "env", "memory": "512m",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+         self.assertRaises(AppError, self.app.post, '/v1/containers',
+                           params=params, content_type='application/json')
+         self.assertTrue(mock_container_create.not_called)
+@@ -263,6 +305,7 @@ class TestContainerController(api_base.FunctionalTest):
+         self.assertIn('image', actual_containers[0])
+         self.assertIn('command', actual_containers[0])
+         self.assertIn('memory', actual_containers[0])
++        self.assertIn('environment', actual_containers[0])
+ 
+     @patch('magnum.conductor.api.API.container_show')
+     @patch('magnum.objects.Container.list')
+@@ -602,7 +645,8 @@ class TestContainerEnforcement(api_base.FunctionalTest):
+     def test_policy_disallow_create(self):
+         params = ('{"name": "' + 'i' * 256 + '", "image": "ubuntu",'
+                   '"command": "env", "memory": "512m",'
+-                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e"}')
++                  '"bay_uuid": "fff114da-3bfa-4a0f-a123-c0dffad9718e",'
++                  '"environment": {"key1": "val1", "key2": "val2"}}')
+ 
+         self._common_policy_check(
+             'container:create', self.app.post, '/v1/containers', params)
+diff --git a/magnum/tests/unit/conductor/handlers/test_docker_conductor.py b/magnum/tests/unit/conductor/handlers/test_docker_conductor.py
+index 481a7d7..1524c27 100644
+--- a/magnum/tests/unit/conductor/handlers/test_docker_conductor.py
++++ b/magnum/tests/unit/conductor/handlers/test_docker_conductor.py
+@@ -47,6 +47,7 @@ class TestDockerHandler(base.BaseTestCase):
+         mock_container.image = 'test_image:some_tag'
+         mock_container.command = None
+         mock_container.memory = None
++        mock_container.environment = None
+ 
+         container = self.conductor.container_create(
+             None, mock_container)
+@@ -60,7 +61,8 @@ class TestDockerHandler(base.BaseTestCase):
+             name='some-name',
+             hostname='some-uuid',
+             command=None,
+-            mem_limit=None)
++            mem_limit=None,
++            environment=None)
+         self.assertEqual(fields.ContainerStatus.STOPPED, container.status)
+ 
+     def test_container_create_with_command(self):
+@@ -70,6 +72,7 @@ class TestDockerHandler(base.BaseTestCase):
+         mock_container.image = 'test_image:some_tag'
+         mock_container.command = 'env'
+         mock_container.memory = None
++        mock_container.environment = None
+ 
+         container = self.conductor.container_create(
+             None, mock_container)
+@@ -83,7 +86,8 @@ class TestDockerHandler(base.BaseTestCase):
+             name='some-name',
+             hostname='some-uuid',
+             command='env',
+-            mem_limit=None)
++            mem_limit=None,
++            environment=None)
+         self.assertEqual(fields.ContainerStatus.STOPPED, container.status)
+ 
+     def test_container_create_with_memory(self):
+@@ -93,7 +97,31 @@ class TestDockerHandler(base.BaseTestCase):
+         mock_container.image = 'test_image:some_tag'
+         mock_container.command = None
+         mock_container.memory = '512m'
++        mock_container.environment = None
++        container = self.conductor.container_create(
++            None, mock_container)
+ 
++        utf8_image = self.conductor._encode_utf8(mock_container.image)
++        self.mock_docker.pull.assert_called_once_with('test_image',
++                                                      tag='some_tag')
++        self.mock_docker.inspect_image.assert_called_once_with(utf8_image)
++        self.mock_docker.create_container.assert_called_once_with(
++            mock_container.image,
++            name='some-name',
++            hostname='some-uuid',
++            command=None,
++            mem_limit='512m',
++            environment=None)
++        self.assertEqual(fields.ContainerStatus.STOPPED, container.status)
++
++    def test_container_create_with_environment(self):
++        mock_container = mock.MagicMock()
++        mock_container.name = 'some-name'
++        mock_container.uuid = 'some-uuid'
++        mock_container.image = 'test_image:some_tag'
++        mock_container.command = None
++        mock_container.memory = '512m'
++        mock_container.environment = {'key1': 'val1', 'key2': 'val2'}
+         container = self.conductor.container_create(
+             None, mock_container)
+ 
+@@ -106,7 +134,8 @@ class TestDockerHandler(base.BaseTestCase):
+             name='some-name',
+             hostname='some-uuid',
+             command=None,
+-            mem_limit='512m')
++            mem_limit='512m',
++            environment={'key1': 'val1', 'key2': 'val2'})
+         self.assertEqual(fields.ContainerStatus.STOPPED, container.status)
+ 
+     def test_encode_utf8_unicode(self):
+diff --git a/magnum/tests/unit/db/utils.py b/magnum/tests/unit/db/utils.py
+index c09f9fc..7997ea1 100644
+--- a/magnum/tests/unit/db/utils.py
++++ b/magnum/tests/unit/db/utils.py
+@@ -222,6 +222,7 @@ def get_test_container(**kw):
+         'bay_uuid': kw.get('bay_uuid', 'fff114da-3bfa-4a0f-a123-c0dffad9718e'),
+         'status': kw.get('state', 'Running'),
+         'memory': kw.get('memory', '512m'),
++        'environment': kw.get('environment', {'key1': 'val1', 'key2': 'val2'}),
+     }
+ 
+ 
+diff --git a/magnum/tests/unit/objects/test_container.py b/magnum/tests/unit/objects/test_container.py
+index 3317435..99717e5 100644
+--- a/magnum/tests/unit/objects/test_container.py
++++ b/magnum/tests/unit/objects/test_container.py
+@@ -99,11 +99,13 @@ class TestContainerObject(base.DbTestCase):
+                 container = objects.Container.get_by_uuid(self.context, uuid)
+                 container.image = 'container.img'
+                 container.memory = '512m'
++                container.environment = {"key1": "val", "key2": "val2"}
+                 container.save()
+ 
+                 mock_get_container.assert_called_once_with(self.context, uuid)
+                 mock_update_container.assert_called_once_with(
+-                    uuid, {'image': 'container.img', 'memory': '512m'})
++                    uuid, {'image': 'container.img', 'memory': '512m',
++                           'environment': {"key1": "val", "key2": "val2"}})
+                 self.assertEqual(self.context, container._context)
+ 
+     def test_refresh(self):
+diff --git a/magnum/tests/unit/objects/test_objects.py b/magnum/tests/unit/objects/test_objects.py
+index 4b3ecc8..a164d0d 100644
+--- a/magnum/tests/unit/objects/test_objects.py
++++ b/magnum/tests/unit/objects/test_objects.py
+@@ -427,7 +427,7 @@ object_data = {
+     'BayLock': '1.0-7d1eb08cf2070523bd210369c7a2e076',
+     'BayModel': '1.8-a4bb0976be245f06edbd1db087a18071',
+     'Certificate': '1.0-2aff667971b85c1edf8d15684fd7d5e2',
+-    'Container': '1.1-968c62bc65ee08027a2cdbba95f5819c',
++    'Container': '1.2-fc9c7d7d89bfa72c0ed7a32597d41e82',
+     'MyObj': '1.0-b43567e512438205e32f4e95ca616697',
+     'Node': '1.0-30943e6e3387a2fae7490b57c4239a17',
+     'Pod': '1.1-7a31c372f163742845c10a008f47cc15',
