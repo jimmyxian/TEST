@@ -1,0 +1,240 @@
+diff --git a/magnumclient/common/utils.py b/magnumclient/common/utils.py
+index d22ddaf..9be7ff4 100644
+--- a/magnumclient/common/utils.py
++++ b/magnumclient/common/utils.py
+@@ -111,3 +111,30 @@ def format_labels(lbls, parse_comma=True):
+ 
+ def print_list_field(field):
+     return lambda obj: ', '.join(getattr(obj, field))
++
++
++def format_all_envs(envs, env_file):
++    '''Refromat environment into dict of format expected by the API.'''
++    if envs is None and env_file is None:
++        return None
++
++    env_list = []
++    if envs is not None:
++        env_list.extend(envs)
++
++    if env_file is not None:
++        file_object = open(env_file)
++        lines = file_object.readlines()
++        for line in lines:
++            env_list.append(line.strip('\n'))
++
++    environment_vars = {}
++    for e in env_list:
++        try:
++            (k, v) = e.split(('='), 1)
++        except ValueError:
++            raise exc.CommandError(_('labels must be a list of KEY=VALUE '
++                                     'not %s') % e)
++        environment_vars[k] = v
++
++    return environment_vars
+diff --git a/magnumclient/tests/test_utils.py b/magnumclient/tests/test_utils.py
+index ae9634c..041225b 100644
+--- a/magnumclient/tests/test_utils.py
++++ b/magnumclient/tests/test_utils.py
+@@ -15,6 +15,7 @@
+ #    License for the specific language governing permissions and limitations
+ #    under the License.
+ 
++import os
+ import six
+ 
+ from magnumclient.common import utils
+@@ -22,6 +23,9 @@ from magnumclient.openstack.common.apiclient import exceptions as exc
+ from magnumclient.openstack.common import cliutils
+ from magnumclient.tests import utils as test_utils
+ 
++TEST_VAR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__),
++                                            'var'))
++
+ 
+ class CommonFiltersTest(test_utils.BaseTestCase):
+     def test_limit(self):
+@@ -184,3 +188,44 @@ class CliUtilsTest(test_utils.BaseTestCase):
+         dict_exp = {'a': '1', 'b': {'x': 1, 'y': '2', 'z': '3'}, 'c': 7}
+         dict_out = cliutils.keys_and_vals_to_strs(dict_in)
+         self.assertEqual(six.text_type(dict_exp), six.text_type(dict_out))
++
++
++class FormatAllEnvsTest(test_utils.BaseTestCase):
++
++    def test_format_all_envs_with_none(self):
++        self.assertIsNone(utils.format_all_envs(None, None))
++
++    def test_format_all_envs(self):
++        env_file = os.path.join(TEST_VAR_DIR, 'env_file')
++        l = utils.format_all_envs([
++            'K1=V1',
++            'K2=V2'], env_file)
++        self.assertEqual({'K1': 'V1',
++                          'K2': 'V2',
++                          'FK1': 'FV1',
++                          'FK2': 'FV2'
++                          }, l)
++
++    def test_format_all_envs_without_env_file(self):
++        l = utils.format_all_envs([
++            'K1=V1',
++            'K2=V2',
++            'K3=V3'], None)
++        self.assertEqual({'K1': 'V1',
++                          'K2': 'V2',
++                          'K3': 'V3'
++                          }, l)
++
++    def test_format_all_envs_without_envs(self):
++        env_file = os.path.join(TEST_VAR_DIR, 'env_file')
++        l = utils.format_all_envs(None, env_file)
++        self.assertEqual({'FK1': 'FV1',
++                          'FK2': 'FV2'
++                          }, l)
++
++    def test_format_all_envs_with_bad_envs(self):
++        envs = ['K1=V1', 'K2']
++        ex = self.assertRaises(exc.CommandError,
++                               utils.format_all_envs, envs, None)
++        self.assertEqual('labels must be a list of KEY=VALUE '
++                         'not K2', str(ex))
+diff --git a/magnumclient/tests/v1/test_containers.py b/magnumclient/tests/v1/test_containers.py
+index 40dd57a..744d625 100644
+--- a/magnumclient/tests/v1/test_containers.py
++++ b/magnumclient/tests/v1/test_containers.py
+@@ -29,6 +29,7 @@ CONTAINER1 = {'id': 123,
+               'image': 'c-image1',
+               'command': 'c-command1',
+               'memory': '512m',
++              'environment': {'key1': 'val1', 'key2': 'val2'},
+               }
+ CONTAINER2 = {'id': 124,
+               'uuid': '66666666-7777-8888-9999-000000000002',
+@@ -37,6 +38,7 @@ CONTAINER2 = {'id': 124,
+               'image': 'c-image2',
+               'command': 'c-command2',
+               'memory': '2g',
++              'environment': {'key2': 'val2'},
+               }
+ 
+ CREATE_CONTAINER = copy.deepcopy(CONTAINER1)
+@@ -215,6 +217,7 @@ class ContainerManagerTest(testtools.TestCase):
+         self.assertEqual(CONTAINER1['image'], container.image)
+         self.assertEqual(CONTAINER1['command'], container.command)
+         self.assertEqual(CONTAINER1['memory'], container.memory)
++        self.assertEqual(CONTAINER1['environment'], container.environment)
+ 
+     def test_container_create(self):
+         container = self.mgr.create(**CREATE_CONTAINER)
+diff --git a/magnumclient/tests/v1/test_containers_shell.py b/magnumclient/tests/v1/test_containers_shell.py
+index 25bf45a..c9fe895 100644
+--- a/magnumclient/tests/v1/test_containers_shell.py
++++ b/magnumclient/tests/v1/test_containers_shell.py
+@@ -13,9 +13,13 @@
+ #    under the License.
+ 
+ import mock
++import os
+ 
+ from magnumclient.tests.v1 import shell_test_base
+ 
++TEST_VAR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__),
++                                            '../var'))
++
+ 
+ class ShellTest(shell_test_base.TestCommandLineArgument):
+ 
+@@ -43,6 +47,50 @@ class ShellTest(shell_test_base.TestCommandLineArgument):
+ 
+     @mock.patch('magnumclient.v1.bays.BayManager.get')
+     @mock.patch('magnumclient.v1.containers.ContainerManager.create')
++    def test_container_create_success_with_env(self, mock_create,
++                                               mock_bay_get):
++        mock_bay = mock.MagicMock()
++        mock_bay.status = "CREATE_COMPLETE"
++        mock_bay_get.return_value = mock_bay
++        self._test_arg_success('container-create '
++                               '--image test-image '
++                               '--bay test-bay '
++                               '--env key1=val1')
++        self.assertTrue(mock_create.called)
++
++    @mock.patch('magnumclient.v1.bays.BayManager.get')
++    @mock.patch('magnumclient.v1.containers.ContainerManager.create')
++    def test_container_create_success_with_multi_envs(self, mock_create,
++                                                      mock_bay_get):
++        mock_bay = mock.MagicMock()
++        mock_bay.status = "CREATE_COMPLETE"
++        mock_bay_get.return_value = mock_bay
++        self._test_arg_success('container-create '
++                               '--image test-image '
++                               '--bay test-bay '
++                               '--env key1=val1 '
++                               '--env key2=val2')
++        self.assertTrue(mock_create.called)
++
++    @mock.patch('magnumclient.v1.bays.BayManager.get')
++    @mock.patch('magnumclient.v1.containers.ContainerManager.create')
++    def test_container_create_success_with_env_file(self, mock_create,
++                                                    mock_bay_get):
++        mock_bay = mock.MagicMock()
++        mock_bay.status = "CREATE_COMPLETE"
++        mock_bay_get.return_value = mock_bay
++
++        env_file = os.path.join(TEST_VAR_DIR, "env_file")
++        self._test_arg_success('container-create '
++                               '--image test-image '
++                               '--bay test-bay '
++                               '--env key1=val1 '
++                               '--env key2=val2 '
++                               '--env-file %s' % env_file)
++        self.assertTrue(mock_create.called)
++
++    @mock.patch('magnumclient.v1.bays.BayManager.get')
++    @mock.patch('magnumclient.v1.containers.ContainerManager.create')
+     def test_container_create_failure_without_image(self, mock_create,
+                                                     mock_bay_get):
+         mock_bay = mock.MagicMock()
+diff --git a/magnumclient/v1/containers.py b/magnumclient/v1/containers.py
+index 1a3435d..e3c3029 100644
+--- a/magnumclient/v1/containers.py
++++ b/magnumclient/v1/containers.py
+@@ -19,7 +19,8 @@ from magnumclient.common import utils
+ from magnumclient import exceptions
+ 
+ 
+-CREATION_ATTRIBUTES = ['name', 'image', 'command', 'bay_uuid', 'memory']
++CREATION_ATTRIBUTES = ['name', 'image', 'command', 'bay_uuid', 'memory',
++                       'environment']
+ 
+ 
+ class Container(base.Resource):
+diff --git a/magnumclient/v1/containers_shell.py b/magnumclient/v1/containers_shell.py
+index c5d4b06..c3672a7 100644
+--- a/magnumclient/v1/containers_shell.py
++++ b/magnumclient/v1/containers_shell.py
+@@ -40,6 +40,14 @@ def _show_container(container):
+            metavar='<memory>',
+            help='The container memory size (format: <number><optional unit>, '
+                 'where unit = b, k, m or g)')
++@utils.arg('--env', metavar='<KEY=VALUE>',
++           action='append', default=[],
++           help='Environment variables used to create the container. '
++                'May be used multiple times.')
++@utils.arg('--env-file',
++           metavar='<file>',
++           help='Environment variables from file used to '
++                'create the container.')
+ def do_container_create(cs, args):
+     """Create a container."""
+     bay = cs.bays.get(args.bay)
+@@ -54,6 +62,7 @@ def do_container_create(cs, args):
+     opts['bay_uuid'] = bay.uuid
+     opts['command'] = args.command
+     opts['memory'] = args.memory
++    opts['environment'] = magnum_utils.format_all_envs(args.env, args.env_file)
+     _show_container(cs.containers.create(**opts))
+ 
+ 
