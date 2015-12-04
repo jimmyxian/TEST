@@ -1,0 +1,279 @@
+{
+    "version": "0.2.0",
+    "platform": {
+        "os": "linux",
+        "arch": "amd64"
+    },
+    "process": {
+        "terminal": false,
+        "user": {
+            "uid": 0,
+            "gid": 0,
+            "additionalGids": null
+        },
+        "args": [
+            "/usr/sbin/nginx",
+	    "-g",
+	    "daemon off;"
+        ],
+        "env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "TERM=xterm"
+        ],
+        "cwd": ""
+    },
+    "root": {
+	"no_pivot_root": true,
+        "path": "/cvmfs/rootfs",
+        "readonly": false
+    },
+    "hostname": "shell",
+    "mounts": [
+        {
+            "name": "proc",
+            "path": "/proc"
+        },
+        {
+            "name": "dev",
+            "path": "/dev"
+        },
+        {
+            "name": "devpts",
+            "path": "/dev/pts"
+        },
+        {
+            "name": "shm",
+            "path": "/dev/shm"
+        },
+        {
+            "name": "mqueue",
+            "path": "/dev/mqueue"
+        },
+        {
+            "name": "sysfs",
+            "path": "/sys"
+        },
+        {
+            "name": "cgroup",
+            "path": "/sys/fs/cgroup"
+        }
+    ],
+    "linux": {
+        "capabilities": [
+            "CAP_AUDIT_WRITE",
+            "CAP_KILL",
+            "CAP_NET_BIND_SERVICE",
+	    "CAP_CHOWN",
+	    "CAP_SETGID",
+	    "CAP_SETUID"
+        ]
+    }
+}
+
+
+
+
+
+{
+    "mounts": {
+        "proc": {
+            "type": "proc",
+            "source": "proc",
+            "options": null
+        },
+        "dev": {
+            "type": "tmpfs",
+            "source": "tmpfs",
+            "options": [
+                "nosuid",
+                "strictatime",
+                "mode=755",
+                "size=65536k"
+            ]
+        },
+        "devpts": {
+            "type": "devpts",
+            "source": "devpts",
+            "options": [
+                "nosuid",
+                "noexec",
+                "newinstance",
+                "ptmxmode=0666",
+                "mode=0620",
+                "gid=5"
+            ]
+        },
+        "shm": {
+            "type": "tmpfs",
+            "source": "shm",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev",
+                "mode=1777",
+                "size=65536k"
+            ]
+        },
+        "mqueue": {
+            "type": "mqueue",
+            "source": "mqueue",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev"
+            ]
+        },
+        "sysfs": {
+            "type": "sysfs",
+            "source": "sysfs",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev"
+            ]
+        },
+        "cgroup": {
+            "type": "cgroup",
+            "source": "cgroup",
+            "options": [
+                "nosuid",
+                "noexec",
+                "nodev",
+                "relatime",
+                "ro"
+            ]
+        }
+    },
+    "hooks": {
+        "prestart": null,
+        "poststop": null
+    },
+    "linux": {
+        "uidMappings": null,
+        "gidMappings": null,
+        "rlimits": [
+            {
+                "type": "RLIMIT_NOFILE",
+                "hard": 1024,
+                "soft": 1024
+            }
+        ],
+        "sysctl": null,
+        "resources": {
+            "disableOOMKiller": false,
+            "memory": {
+                "limit": 0,
+                "reservation": 0,
+                "swap": 0,
+                "kernel": 0,
+                "swappiness": -1
+            },
+            "cpu": {
+                "shares": 0,
+                "quota": 0,
+                "period": 0,
+                "realtimeRuntime": 0,
+                "realtimePeriod": 0,
+                "cpus": "",
+                "mems": ""
+            },
+            "pids": {
+                "limit": 0
+            },
+            "blockIO": {
+                "blkioWeight": 0
+            },
+            "hugepageLimits": null,
+            "network": {
+                "classId": "",
+                "priorities": null
+            }
+        },
+        "cgroupsPath": "",
+        "namespaces": [
+            {
+                "type": "pid",
+                "path": ""
+            },
+            {
+                "type": "ipc",
+                "path": ""
+            },
+            {
+                "type": "uts",
+                "path": ""
+            },
+            {
+                "type": "mount",
+                "path": ""
+            }
+        ],
+        "devices": [
+            {
+                "path": "/dev/null",
+                "type": 99,
+                "major": 1,
+                "minor": 3,
+                "permissions": "rwm",
+                "fileMode": 438,
+                "uid": 0,
+                "gid": 0
+            },
+            {
+                "path": "/dev/random",
+                "type": 99,
+                "major": 1,
+                "minor": 8,
+                "permissions": "rwm",
+                "fileMode": 438,
+                "uid": 0,
+                "gid": 0
+            },
+            {
+                "path": "/dev/full",
+                "type": 99,
+                "major": 1,
+                "minor": 7,
+                "permissions": "rwm",
+                "fileMode": 438,
+                "uid": 0,
+                "gid": 0
+            },
+            {
+                "path": "/dev/tty",
+                "type": 99,
+                "major": 5,
+                "minor": 0,
+                "permissions": "rwm",
+                "fileMode": 438,
+                "uid": 0,
+                "gid": 0
+            },
+            {
+                "path": "/dev/zero",
+                "type": 99,
+                "major": 1,
+                "minor": 5,
+                "permissions": "rwm",
+                "fileMode": 438,
+                "uid": 0,
+                "gid": 0
+            },
+            {
+                "path": "/dev/urandom",
+                "type": 99,
+                "major": 1,
+                "minor": 9,
+                "permissions": "rwm",
+                "fileMode": 438,
+                "uid": 0,
+                "gid": 0
+            }
+        ],
+        "apparmorProfile": "",
+        "selinuxProcessLabel": "",
+        "rootfsPropagation": ""
+    }
+}
+
+
