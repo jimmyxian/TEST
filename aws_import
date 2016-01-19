@@ -1,0 +1,18 @@
+AWS镜像导入流程已成功测试完成
+本次验证采用windows 7系统，通过virtual box安装虚拟机，虚拟机镜像为raw格式，然后将raw格式镜像导入AWS
+【镜像导入流程】
+（1）准备虚拟机镜像
+     有周多限制：
+     http://docs.aws.amazon.com/zh_cn/AWSEC2/latest/UserGuide/VMImportPrerequisites.html
+     http://docs.aws.amazon.com/zh_cn/AWSEC2/latest/UserGuide/PrepareVMImportImage.html
+（2）将镜像上传至S3
+（3）通过aws ec2 import-image命令导入镜像
+     这个过程大概需要40分钟，导入任务状态变化：
+     pending-->converting-->validating-->updating-->preparing to boot-->booting-->preparing ami-->completed
+     可以看到在导入过程中，会启动虚拟机
+
+【结论总结】
+（1）在导入过程中，会注入PV drvier（Citrix）
+（2）在导入过程中会注入2个程序，EC2ConfigService和Citrix Tools for Virtual Machines（包含了Citrix PV driver）
+（3）导入以后AMI保存在ebs上
+（4）通过自定义AMI启动的实例，系统用户名密码为导入之前的用户名密码
