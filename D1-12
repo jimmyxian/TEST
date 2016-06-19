@@ -1,0 +1,353 @@
+Docker1.12新特性之Swarm
+在Docker1.12版本中，一个大的功能点是swarm集群（基于swarmkit项目），通过docker命令可以实现多个docker-engine自发现，并组建成为一个容器集群。有关集群的docker命令如下：
+（1）docker swarm：集群管理，子命令有init, join, leave, update
+（2）docker service：服务创建，子命令有create, inspect, update, remove, tasks
+（3）docker node：节点管理，子命令有accept, promote, demote, inspect, update, tasks, ls, rm
+（4）docker stack/deploy：试验特性，用于多应用部署
+下面在一个三节点环境中，针对各个命令进行试用，详细展开说明
+
+1、swarm
+swarm命令用于集群管理，子命令如下：
+	[root@host1 ~]# docker swarm --help
+
+	Usage:	docker swarm COMMAND
+
+	Manage Docker Swarm
+
+	Options:
+		  --help   Print usage
+
+	Commands:
+	  init        Initialize a Swarm.
+	  join        Join a Swarm as a node and/or manager.
+	  update      update the Swarm.
+	  leave       Leave a Swarm.
+	  inspect     Inspect the Swarm
+
+	Run 'docker swarm COMMAND --help' for more information on a command.
+可以看到，提供了init、join、update、leave、inspect命令
+（1）swarm init命令用于初始化一个集群
+	[root@host1 ~]# docker swarm init --help
+
+	Usage:	docker swarm init [OPTIONS]
+
+	Initialize a Swarm.
+
+	Options:
+		  --auto-accept value   Auto acceptance policy (worker, manager, or none)
+		  --force-new-cluster   Force create a new cluster from current state.
+		  --help                Print usage
+		  --listen-addr value   Listen address (default 0.0.0.0:2377)
+		  --secret string       Set secret value needed to accept nodes into cluster
+在第一个节点上运行init命令初始化一个集群，初始化完成后会监听2377端口，接受其他节点的加入请求
+	[root@host1 ~]# docker swarm init
+	Swarm initialized: current node (6mjmescd8473lh6jpvmx2khkq) is now a manager.
+（2）swarm join命令用于加入一个现有集群
+	[root@host1 ~]# docker swarm join --help
+
+	Usage:	docker swarm join [OPTIONS] HOST:PORT
+
+	Join a Swarm as a node and/or manager.
+
+	Options:
+		  --ca-hash string      Hash of the Root Certificate Authority certificate used for trusted join
+		  --help                Print usage
+		  --listen-addr value   Listen address (default 0.0.0.0:2377)
+		  --manager             Try joining as a manager.
+		  --secret string       Secret for node acceptance
+在第二个、第三个节点上通过join命令加入集群
+	[root@host2 ~]# docker swarm join 186.100.40.90:2377
+	This node joined a Swarm as a worker.
+	[root@host3 ~]# docker swarm join 186.100.40.90:2377
+	This node joined a Swarm as a worker.
+在第一个节点上，通过docker node ls查看节点信息
+	[root@host1 ~]# docker node ls
+	ID                           NAME   MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+	3xto6bh4htx7thj7b222datfd    host2  Accepted    Ready   Active                        
+	6mjmescd8473lh6jpvmx2khkq *  host1  Accepted    Ready   Active        Reachable       Yes
+	bwkk0n044fuod36dvghi9jbkv    host3  Accepted    Ready   Active
+可以看到当前集群中有3个节点，Manager节点为host1，由于当前只有一个manager，所以这一节点也为是leader（swarmkit采用raft协议构建集群）
+（3）swarm leave命令由于离开集群
+（4）swarm inspect命令用于查看集群详细信息
+	[root@host1 ~]# docker swarm inspect
+	[
+		{
+			"ID": "90wkw2fmy0x5fjlh0mtuhtkrd",
+			"Version": {
+				"Index": 11
+			},
+			"CreatedAt": "2016-06-19T12:47:40.260925387Z",
+			"UpdatedAt": "2016-06-19T12:47:40.665401298Z",
+			"Spec": {
+				"Name": "default",
+				"AcceptancePolicy": {
+					"Policies": [
+						{
+							"Role": "worker",
+							"Autoaccept": true
+						},
+						{
+							"Role": "manager",
+							"Autoaccept": false
+						}
+					]
+				},
+				"Orchestration": {
+					"TaskHistoryRetentionLimit": 10
+				},
+				"Raft": {
+					"SnapshotInterval": 10000,
+					"LogEntriesForSlowFollowers": 500,
+					"HeartbeatTick": 1,
+					"ElectionTick": 3
+				},
+				"Dispatcher": {
+					"HeartbeatPeriod": 5000000000
+				},
+				"CAConfig": {
+					"NodeCertExpiry": 7776000000000000
+				}
+			}
+		}
+	]
+2、service
+通过service命令可以管理一个服务，子命令如下：
+	[root@host1 ~]# docker service --help
+
+	Usage:	docker service COMMAND
+
+	Manage Docker services
+
+	Options:
+		  --help   Print usage
+
+	Commands:
+	  create      Create a new service
+	  inspect     Inspect a service
+	  tasks       List the tasks of a service
+	  ls          List services
+	  rm          Remove a service
+	  scale       Scale one or multiple services
+	  update      Update a service
+
+	Run 'docker service COMMAND --help' for more information on a command.
+（1）service create命令用于创建一个服务
+	[root@host1 ~]# docker service create --help
+
+	Usage:	docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
+
+	Create a new service
+
+	Options:
+		  --constraint value             Placement constraints (default [])
+		  --endpoint-mode string         Endpoint mode(Valid values: VIP, DNSRR)
+	  -e, --env value                    Set environment variables (default [])
+		  --help                         Print usage
+	  -l, --label value                  Service labels (default [])
+		  --limit-cpu value              Limit CPUs
+		  --limit-memory value           Limit Memory
+		  --mode string                  Service mode (replicated or global) (default "replicated")
+	  -m, --mount value                  Attach a mount to the service
+		  --name string                  Service name
+		  --network value                Network attachments (default [])
+	  -p, --publish value                Publish a port as a node port (default [])
+		  --replicas value               Number of tasks (default none)
+		  --reserve-cpu value            Reserve CPUs
+		  --reserve-memory value         Reserve Memory
+		  --restart-condition string     Restart when condition is met (none, on_failure, or any)
+		  --restart-delay value          Delay between restart attempts (default none)
+		  --restart-max-attempts value   Maximum number of restarts before giving up (default none)
+		  --restart-window value         Window used to evalulate the restart policy (default none)
+		  --stop-grace-period value      Time to wait before force killing a container (default none)
+		  --update-delay duration        Delay between updates
+		  --update-parallelism uint      Maximum number of tasks updated simultaneously (default 1)
+	  -u, --user string                  Username or UID
+	  -w, --workdir string               Working directory inside the container
+在参数中有两个比较重要的参数：
+* replicas用于描述服务对应的实例数
+* mode用来描述服务的类型，replicated多实例类型，global全局服务类型（在每一个节点上都会创建）
+
+在第一个节点上，通过create命令创建服务：
+	[root@host1 ~]# docker service create --name test_service --replicas 2 busybox ping 186.100.40.1
+	et1i181ni4dj2ocm1l4frbqzm
+（2）service ls命令用户查看service列表
+	[root@host1 ~]# docker service ls
+	ID            NAME          SCALE  IMAGE    COMMAND
+	et1i181ni4dj  test_service  2      busybox  ping 186.100.40.1
+（3）service tasks可以查看service对应的任务
+	[root@host1 ~]# docker service tasks test_service
+	ID                         NAME            SERVICE       IMAGE    LAST STATE              DESIRED STATE  NODE
+	1yewid0xbviyggyvjv10adjrs  test_service.1  test_service  busybox  Running About a minute  Running        host3
+	9l4z9aqlg9iwums14yxu0lym7  test_service.2  test_service  busybox  Running About a minute  Running        host1
+可以看到，刚才创建的service对应的2个实例分别在host3和host1上
+（4）service update可以对服务的参数进行更新
+对刚才创建的service实力数目进行更新
+	[root@host1 ~]# docker service update --replicas 3 test_service
+	test_service
+	[root@host1 ~]# docker service tasks test_service
+	ID                         NAME            SERVICE       IMAGE    LAST STATE          DESIRED STATE  NODE
+	1yewid0xbviyggyvjv10adjrs  test_service.1  test_service  busybox  Running 5 minutes   Running        host3
+	9l4z9aqlg9iwums14yxu0lym7  test_service.2  test_service  busybox  Running 5 minutes   Running        host1
+	emnuxg8sb37hbxbpdt63mpy1a  test_service.3  test_service  busybox  Running 18 seconds  Running        host2
+（5）service inspect命令用户查看service详细信息
+	[root@host1 ~]# docker service inspect test_service
+	[
+		{
+			"ID": "et1i181ni4dj2ocm1l4frbqzm",
+			"Version": {
+				"Index": 33
+			},
+			"CreatedAt": "2016-06-19T13:07:29.549242777Z",
+			"UpdatedAt": "2016-06-19T13:12:23.210552545Z",
+			"Spec": {
+				"Name": "test_service",
+				"TaskTemplate": {
+					"ContainerSpec": {
+						"Image": "busybox",
+						"Args": [
+							"ping",
+							"186.100.40.1"
+						]
+					},
+					"Resources": {
+						"Limits": {},
+						"Reservations": {}
+					},
+					"RestartPolicy": {
+						"Condition": "any",
+						"MaxAttempts": 0
+					},
+					"Placement": {}
+				},
+				"Mode": {
+					"Replicated": {
+						"Replicas": 3
+					}
+				},
+				"UpdateConfig": {
+					"Parallelism": 1
+				},
+				"EndpointSpec": {
+					"Mode": "vip"
+				}
+			},
+			"Endpoint": {
+				"Spec": {}
+			}
+		}
+	]
+3、node
+node命令用户节点管理，比如将一个节点变为manager节点、同意节点加入请求等。
+	[root@host1 ~]# docker node --help
+
+	Usage:	docker node COMMAND
+
+	Manage Docker Swarm nodes
+
+	Options:
+		  --help   Print usage
+
+	Commands:
+	  accept      Accept a node in the swarm
+	  demote      Demote a node from manager in the swarm
+	  inspect     Inspect a node in the swarm
+	  ls          List nodes in the swarm
+	  promote     Promote a node to a manager in the swarm
+	  rm          Remove a node from the swarm
+	  tasks       List tasks running on a node
+	  update      Update a node
+
+	Run 'docker node COMMAND --help' for more information on a command.
+（1）node accept
+accpet命令用户同意节点加入请求，在初始化swarm集群时候通过--auto-accept可以指定节点默认加入的较色，如果为none的话，需要通过accpet命令同意加入节点，成为worker节点
+重新初始化三节点，集群初始化时，采用--auto-accept=none，最终可以看到新加入的两个节点MEMBERSHIP为Pending
+	[root@host1 ~]# docker node ls
+	ID                           NAME   MEMBERSHIP  STATUS   AVAILABILITY  MANAGER STATUS  LEADER
+	15wyq8vc1vxe7r4n3yyl0p93j *  host1  Accepted    Ready    Active        Reachable       Yes
+	2fh91rbwtj2xosqixzlc7s3mg           Pending     Unknown  Active                        
+	5okhpif49b4d6byohpdr4vdmw           Pending     Unknown  Active 
+通过accept命令同意节点加入：
+	[root@host1 ~]# docker node accept 2fh91rbwtj2xosqixzlc7s3mg
+	2fh91rbwtj2xosqixzlc7s3mg
+	[root@host1 ~]# docker node ls
+	ID                           NAME   MEMBERSHIP  STATUS   AVAILABILITY  MANAGER STATUS  LEADER
+	15wyq8vc1vxe7r4n3yyl0p93j *  host1  Accepted    Ready    Active        Reachable       Yes
+	2fh91rbwtj2xosqixzlc7s3mg    host3  Accepted    Ready    Active                        
+	5okhpif49b4d6byohpdr4vdmw           Pending     Unknown  Active  
+	[root@host1 ~]# docker node accept 5okhpif49b4d6byohpdr4vdmw
+	5okhpif49b4d6byohpdr4vdmw
+	5okhpif49b4d6byohpdr4vdmw attempting to accept a node in the swarm.
+	[root@host1 ~]# docker node ls
+	ID                           NAME   MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+	15wyq8vc1vxe7r4n3yyl0p93j *  host1  Accepted    Ready   Active        Reachable       Yes
+	2fh91rbwtj2xosqixzlc7s3mg    host3  Accepted    Ready   Active                        
+	5okhpif49b4d6byohpdr4vdmw    host2  Accepted    Ready   Active  
+（2）node promote命令用于将worker节点提升为manager节点，用户manager的HA
+	[root@host1 ~]# docker node promote 2fh91rbwtj2xosqixzlc7s3mg
+	2fh91rbwtj2xosqixzlc7s3mg
+	2fh91rbwtj2xosqixzlc7s3mg attempting to promote a node to a manager in the swarm.
+	[root@host1 ~]# docker node ls
+	ID                           NAME   MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+	15wyq8vc1vxe7r4n3yyl0p93j *  host1  Accepted    Ready   Active        Reachable       Yes
+	2fh91rbwtj2xosqixzlc7s3mg    host3  Accepted    Ready   Active        Reachable       
+	5okhpif49b4d6byohpdr4vdmw    host2  Accepted    Ready   Active  
+	[root@host1 ~]# docker node promote 5okhpif49b4d6byohpdr4vdmw
+	5okhpif49b4d6byohpdr4vdmw
+	5okhpif49b4d6byohpdr4vdmw attempting to promote a node to a manager in the swarm.
+	[root@host1 ~]# docker node ls
+	ID                           NAME   MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+	15wyq8vc1vxe7r4n3yyl0p93j *  host1  Accepted    Ready   Active        Reachable       Yes
+	2fh91rbwtj2xosqixzlc7s3mg    host3  Accepted    Ready   Active        Reachable       
+	5okhpif49b4d6byohpdr4vdmw    host2  Accepted    Ready   Active        Reachable 
+（3）node demote命令用户将manger节点变为worker节点
+	[root@host1 ~]# docker node demote 15wyq8vc1vxe7r4n3yyl0p93j
+	15wyq8vc1vxe7r4n3yyl0p93j
+	15wyq8vc1vxe7r4n3yyl0p93j attempting to demote a manager in the swarm.
+	[root@host1 ~]# docker node ls
+	Error response from daemon: rpc error: code = 4 desc = context deadline exceeded
+可以看到变为worker节点以后，就无法再此节点上对集群进行管理
+	[root@host2 ~]# docker node ls
+	ID                           NAME   MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+	15wyq8vc1vxe7r4n3yyl0p93j    host1  Accepted    Ready   Active                        
+	2fh91rbwtj2xosqixzlc7s3mg    host3  Accepted    Ready   Active        Reachable       Yes
+	5okhpif49b4d6byohpdr4vdmw *  host2  Accepted    Ready   Active        Reachable 
+可以看到此时，host2已经变为了leader
+（4）node inspect查看节点详细信息
+（5）node ls查看节点列表
+（6）node rm删除一个节点
+（7）node tasks可以查看节点上运行的任务task
+（8）node update可以更新一个节点
+	[root@host2 ~]# docker node update --help
+
+	Usage:	docker node update [OPTIONS] NODE
+
+	Update a node
+
+	Options:
+		  --availability string   Availability of the node (active/pause/drain)
+		  --help                  Print usage
+		  --membership string     Membership of the node (accepted/rejected)
+		  --role string           Role of the node (worker/manager)
+
+4、stack/deploy
+这两个命令都是experiment阶段，用来部署一个STACK，一个STACK可以描述多个service。
+在创建Stack前，需要通过compose.yml文件描述一个组应用，然后再用compose bundle产生一个dsb文件，用户stack的创建。
+	[root@host2 ~]# docker stack --help
+
+	Usage:	docker stack COMMAND
+
+	Manage Docker stacks
+
+	Options:
+		  --help   Print usage
+
+	Commands:
+	  config      Print the stack configuration
+	  deploy      Create and update a stack
+	  rm          Remove the stack
+	  tasks       List the tasks in the stack
+
+	Run 'docker stack COMMAND --help' for more information on a command.
+
+5、总结
+Docker1.12通过swarm实现了容器集群，在集群之上可以service命令创建一个服务，实现服务的多实例。在服务之上，通过stack可以描述一组服务，最终实现一个大系统的部署。可见，docker在公司在下一盘很大的棋，从镜像生态到容器引擎，从容器引擎到容器集群，Anything is possible in Docker。
