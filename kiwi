@@ -1,0 +1,62 @@
+KIWI工具初体验
+1、什么是KIWI
+KIWI是一个命令行工具，采用离线方式制作linux操作系统。开源、用Perl语言编写。支持SLES、openSUSE、CentOS、RHEL系列Linux系统的制作。KIWI支持如下输出格式：
+* ISO
+* Live CD/DVD
+* PXEBoot
+* Hard Disk
+* USB
+* Amazon EC2 (.ami)
+* Docker
+* Google Cloud Format (..gce)
+* KVM/Qemu (.qcow2)
+* Open Virtualization Format (.ovf, .ova)
+* Vagrant (.vagrant
+* VirtualBox (.vdi)
+* Virtual Hard Disk (.vhd)
+* VMware (.vmdk)
+* XEN
+
+2、初体验
+目标：通过Kiwi制作openSUSE 42.1 xen环境下的虚拟机镜像
+环境：HostOS采用openSUSE 42.1
+（1）安装kiwi工具
+	$zypper install kiwi kiwi-desc-vmxboot kiwi-templates
+（2）镜像配置
+安装完后，可以在/usr/share/kiwi/image/目录下找到操作系统模板配置config.xml，以opensuse42.1为例，对应的配置如下：
+
+
+（3）Build镜像
+	$kiwi --build suse-leap-42.1-JeOS \
+	 --set-repo iso:///home/openSUSE-Leap-42.1-DVD-x86_64.iso \
+	 -d /tmp/myimage \
+	 --type vmx
+说明:
+* --build：指定的是模板名称
+* --set-repo: 本次试验采用iso源，这个配置项也可以在第二步中的config.xml里直接描述
+* -d: 输出路径
+* --type: 输出类型
+
+备注：在build过程中，提示如下错误，
+	Package 'kiwi-desc-isoboot' not found.
+	Package 'kiwi-desc-oemboot' not found.
+在config.xml中将这两个包删除掉，可解决此问题，原因iso源中没有这两个包（opensuse42.1 repo源中有）。
+
+build成功后，可以在输出路径中看到如下文件：
+LimeJeOS-Leap-42.1.x86_64-1.42.1.mf
+LimeJeOS-Leap-42.1.x86_64-1.42.1.ova
+LimeJeOS-Leap-42.1.x86_64-1.42.1.ovf
+LimeJeOS-Leap-42.1.x86_64-1.42.1.ovf.tmp
+LimeJeOS-Leap-42.1.x86_64-1.42.1.packages
+LimeJeOS-Leap-42.1.x86_64-1.42.1.pids
+LimeJeOS-Leap-42.1.x86_64-1.42.1.raw
+LimeJeOS-Leap-42.1.x86_64-1.42.1.verified
+LimeJeOS-Leap-42.1.x86_64-1.42.1.vmdk
+LimeJeOS-Leap-42.1.x86_64-1.42.1.vmx
+initrd-vmxboot-suse-leap-42.1.x86_64-2.42.1.gz
+initrd-vmxboot-suse-leap-42.1.x86_64-2.42.1.kernel.4.1.12-1-default
+initrd-vmxboot-suse-leap-42.1.x86_64-2.42.1.kernel.4.1.12-1-default.md5
+initrd-vmxboot-suse-leap-42.1.x86_64-2.42.1.md5
+
+（4）启动镜像
+使用刚才生成的raw镜像，通过libvirt启动虚拟机验证，最终可以看到虚拟机成功启动，默认用户名密码为root/linux
